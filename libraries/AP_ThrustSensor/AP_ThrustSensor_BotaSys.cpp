@@ -26,6 +26,7 @@ extern const AP_HAL::HAL& hal;
 // read - return last value measured by sensor
 bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
 {
+/*
     if (uart == nullptr) {
         return false;
     }
@@ -43,7 +44,7 @@ bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
         //char c = uart->read();
 
         
-/*
+
         // use binary protocol
         if (protocol_state == ProtocolState::UNKNOWN || protocol_state == ProtocolState::BINARY) {
             bool msb_set = BIT_IS_SET(c, 7);
@@ -69,9 +70,8 @@ bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
                 high_byte_received = false;
             }
         }
-        */
+        
     }
-
 
     uint32_t now = AP_HAL::millis();
     if (last_init_ms == 0 ||
@@ -99,9 +99,10 @@ bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
         no_signal = true;
         return true;
     }
-
+*/
     // no readings so return false
-    return false;
+    reading_m = 1.2345;
+    return true;
 }
 
 /*

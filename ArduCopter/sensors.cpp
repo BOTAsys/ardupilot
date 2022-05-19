@@ -24,6 +24,11 @@ void Copter::init_rangefinder(void)
 #endif
 }
 
+void Copter::read_thrustsensor(void)
+{
+    thrustsensor.update();
+}
+
 // return rangefinder altitude in centimeters
 void Copter::read_rangefinder(void)
 {

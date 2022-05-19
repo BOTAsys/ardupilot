@@ -116,6 +116,11 @@
 #define AP_SERIALMANAGER_MSP_BUFSIZE_TX     256
 #define AP_SERIALMANAGER_MSP_BAUD           115200
 
+// ThrustSensor protocol
+#define AP_SERIALMANAGER_THRUSTSENSOR_BUFSIZE_RX        64
+#define AP_SERIALMANAGER_THRUSTSENSOR_BUFSIZE_TX        64
+#define AP_SERIALMANAGER_THRUSTSENSOR_BAUD              460800
+
 class AP_SerialManager {
 public:
     AP_SerialManager();
@@ -170,6 +175,7 @@ public:
         SerialProtocol_CoDevESC = 41,
         SerialProtocol_MSP_DisplayPort = 42,
         SerialProtocol_MAVLinkHL = 43,
+        SerialProtocol_ThrustSensor = 44,
         SerialProtocol_NumProtocols                    // must be the last value
     };
 

@@ -129,6 +129,10 @@
  # include <AP_RangeFinder/AP_RangeFinder.h>
 #endif
 
+#if THRUSTSENSOR_ENABLED == ENABLED
+ #include <AP_ThrustSensor/AP_ThrustSensor.h>
+#endif
+
 #include <AP_Mount/AP_Mount.h>
 
 #if CAMERA == ENABLED

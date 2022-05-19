@@ -51,6 +51,7 @@
 #include <AP_VideoTX/AP_SmartAudio.h>
 #include <SITL/SITL.h>
 #include <AP_CustomRotations/AP_CustomRotations.h>
+#include <AP_ThrustSensor/AP_ThrustSensor.h>
 
 class AP_Vehicle : public AP_HAL::HAL::Callbacks {
 
@@ -398,6 +399,10 @@ protected:
 
 #if AP_SIM_ENABLED
     SITL::SIM sitl;
+#endif
+
+#if AP_THRUSTSENSOR_ENABLED
+    ThrustSensor thrustsensor;
 #endif
 
 private:

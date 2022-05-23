@@ -13,6 +13,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+
 #include "AP_ThrustSensor_BotaSys.h"
 
 #include <AP_HAL/AP_HAL.h>
@@ -27,22 +28,100 @@ extern const AP_HAL::HAL& hal;
 // read - return last value measured by sensor
 bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
 {
-/*
+    //CRC16 checksum calculation 
+    #define lo8(x) ((x)&0xFF) 
+    #define hi8(x) (((x)>>8)&0xFF) 
+    inline uint16_t calcCrc16_x25(uint8_t *data, int len) 
+    { 
+        uint16_t crc = 0xFFFF; 
+        while(len--) crc = crc_ccitt_update(crc, *data++); 
+        return ~crc; 
+    } 
+    
+    uint16_t crc_ccitt_update (uint16_t crc, uint8_t data)
+
+    struct DataStatus __attribute__((__packed__)) 
+    { 
+        uint16_t app_took_too_long:1; 
+        uint16_t overrange:1; 
+        uint16_t invalid_measurements:1; 
+        uint16_t raw_measurements:1; 
+        uint16_t:12; //reserved 
+    }; 
+        
+    struct AppOutput __attribute__((__packed__)) 
+    { 
+        DataStatus status; 
+        float forces[6]; 
+        uint32_t timestamp; 
+        float temperature; 
+    }; 
+
+    struct __attribute__((__packed__)) RxFrame 
+    { 
+        uint8_t header; 
+        AppOutput data; 
+        uint16_t crc16_ccitt; 
+    }frame;
+
     if (uart == nullptr) {
         return false;
     }
 
-    float sum = 0;              // sum of all readings taken
-    uint16_t valid_count = 0;   // number of valid readings
-    uint16_t invalid_count = 0; // number of invalid readings
+    const char frameHeader = 0xAA;
+    bool frameSync_ = false;
 
-    // max distance the sensor can reliably measure - read from parameters
-    //const int16_t distance_cm_max = max_distance_cm();
-
-    // read any available lines from the lidar
+    // read any available lines from the sensor
     int16_t nbytes = uart->available();
     while (nbytes-- > 0) {
-        //char c = uart->read();
+        while (!frameSync_)
+        {
+            char possible_header = uart->read(); // or read(uint8_t *buffer, uint16_t count);
+            if (frameHeader == possible_header)
+            {
+                uart->read((char*)frame, sizeof(frame) - sizeof(frame.header));
+                if (frame.crc16_ccitt == calcCrc16X25(frame.data.bytes, sizeof(frame.data))) 
+                { 
+                    frameSync_ = true; 
+                } 
+                else 
+                { 
+                /* if there is a frame that included the header 0xAA in 
+                 * a fixed position. Could be the above checking mechanism 
+                 * will get stuck because will find the wrong value as header
+                 * then will remove from the buffer n bytes where n the size 
+                 * of the frame and then will find again exactly the same
+                 * situation the wrong header. So we read on extra byte to make 
+                 * sure next time will start from the position that is size of frame 
+                 * plus 1. It works 
+                 */ 
+                char dummy; 
+                uart->read((char*)&dummy, sizeof(dummy)); 
+                } 
+            } 
+        } 
+        if (frameSync_) 
+        {   
+            /* Read the sensor measurements frame assuming that is alligned with the RX buffer */ 
+            uart->read((char*)frame, sizeof(frame)); 
+            /* Check if the frame is still alligned, otherwise exit */ 
+            if (frame.header != frameHeader) 
+            { 
+                frameSync_ = false;
+                break; 
+            } 
+            // Read and check CRC 16-bit
+            uint16_t crc_received = frame.crc16_ccitt; 
+            uint16_t crc_computed = calcCrc16X25(frame.data.bytes, sizeof(frame.data));
+            if (crc_received != crc_computed) 
+            { 
+                break;
+                //skip this measurements 
+            }
+            // Do something with the measurements
+            state.force_n = frame.data.force[2];
+            
+        }
 
         
 

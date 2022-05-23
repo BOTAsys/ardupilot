@@ -79,7 +79,7 @@ void AP_ThrustSensor_Backend::set_status(ThrustSensor::Status _status)
 
 void AP_ThrustSensor_Backend::init_serial(uint8_t serial_instance)
 {
-    uart = AP::serialmanager().find_serial(AP_SerialManager::SerialProtocol_Rangefinder, serial_instance);
+    uart = AP::serialmanager().find_serial(AP_SerialManager::SerialProtocol_ThrustSensor, serial_instance);
     if (uart != nullptr) {
         uart->begin(initial_baudrate(serial_instance), rx_bufsize(), tx_bufsize());
     }
@@ -87,11 +87,11 @@ void AP_ThrustSensor_Backend::init_serial(uint8_t serial_instance)
 
 uint32_t AP_ThrustSensor_Backend::initial_baudrate(const uint8_t serial_instance) const
 {
-    return AP::serialmanager().find_baudrate(AP_SerialManager::SerialProtocol_Rangefinder, serial_instance);
+    return AP::serialmanager().find_baudrate(AP_SerialManager::SerialProtocol_ThrustSensor, serial_instance);
 }
 
 /*
-   detect if a Serial rangefinder is connected. We'll detect by simply
+   detect if a Serial thrustsensor is connected. We'll detect by simply
    checking for SerialManager configuration
 */
 bool AP_ThrustSensor_Backend::detect(uint8_t serial_instance)

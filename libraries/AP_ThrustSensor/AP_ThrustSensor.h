@@ -28,7 +28,7 @@
 // Maximum number of range finder instances available on this platform
 #ifndef THRUSTSENSOR_MAX_INSTANCES 
   #if AP_THRUSTSENSOR_ENABLED
-  #define THRUSTSENSOR_MAX_INSTANCES 4
+  #define THRUSTSENSOR_MAX_INSTANCES 8
   #else
   #define THRUSTSENSOR_MAX_INSTANCES 1
   #endif

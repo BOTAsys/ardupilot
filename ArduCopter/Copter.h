@@ -877,6 +877,7 @@ private:
     bool rangefinder_up_ok() const;
     void update_optical_flow(void);
     void compass_cal_update(void);
+    void init_thrustsensor(void);
     void read_thrustsensor(void);
 
     // RC_Channel.cpp

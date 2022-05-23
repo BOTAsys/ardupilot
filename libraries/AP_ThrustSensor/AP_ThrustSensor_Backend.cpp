@@ -18,8 +18,8 @@
 #include "AP_ThrustSensor.h"
 #include "AP_ThrustSensor_Backend.h"
 #include <AP_SerialManager/AP_SerialManager.h>
-
 #include <ctype.h>
+#include <GCS_MAVLink/GCS.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -96,7 +96,8 @@ uint32_t AP_ThrustSensor_Backend::initial_baudrate(const uint8_t serial_instance
 */
 bool AP_ThrustSensor_Backend::detect(uint8_t serial_instance)
 {
-    return AP::serialmanager().have_serial(AP_SerialManager::SerialProtocol_Rangefinder, serial_instance);
+    //return AP::serialmanager().have_serial(AP_SerialManager::SerialProtocol_Rangefinder, serial_instance);
+    return true;
 }
 
 
@@ -112,4 +113,10 @@ void AP_ThrustSensor_Backend::update(void)
     } else if (AP_HAL::millis() - state.last_reading_ms > read_timeout_ms()) {
         set_status(ThrustSensor::Status::NoData);
     }
+    /*static uint8_t counter = 0;
+    counter++;
+    if (counter > 1) {
+        counter = 0;
+        gcs().send_text(MAV_SEVERITY_CRITICAL, "Backend Update");
+    }*/
 }

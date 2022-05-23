@@ -18,6 +18,7 @@
 #include <AP_BoardConfig/AP_BoardConfig.h>
 #include <AP_Logger/AP_Logger.h>
 #include <AP_Vehicle/AP_Vehicle_Type.h>
+#include <GCS_MAVLink/GCS.h>
 
 extern const AP_HAL::HAL &hal;
 
@@ -82,6 +83,7 @@ ThrustSensor::ThrustSensor()
  */
 void ThrustSensor::init(void)
 {
+    //gcs().send_text(MAV_SEVERITY_CRITICAL, "Init called");
     if (init_done) {
         // init called a 2nd time?
         return;
@@ -113,17 +115,28 @@ void ThrustSensor::init(void)
  */
 void ThrustSensor::update(void)
 {
+    //gcs().send_text(MAV_SEVERITY_CRITICAL, "num_instances %5.3f", (double)num_instances);
+    //gcs().send_text(MAV_SEVERITY_CRITICAL, "init_done %5.3f", (double)init_done);
     for (uint8_t i=0; i<num_instances; i++) {
         if (drivers[i] != nullptr) {
-            if ((Type)params[i].type.get() == Type::NONE) {
+            //gcs().send_text(MAV_SEVERITY_CRITICAL, "Drivers available");
+            /*if ((Type)params[i].type.get() == Type::NONE) {
                 // allow user to disable a rangefinder at runtime
                 state[i].status = Status::NotConnected;
                 state[i].thrust_valid_count = 0;
                 continue;
-            }
-            drivers[i]->update();
+            }*/
+            drivers[i]->update();   
+            static uint8_t counter = 0;
+            counter++;
+            if (counter > 50) {
+                counter = 0;
+                gcs().send_text(MAV_SEVERITY_CRITICAL, "Thrust %5.3f", (double)state[i].force_n);
+             }
         }
     }
+    
+    //AP::logger().Write("TSBS", "TimeUS", "Thrust", "Qf", AP_HAL::micros64(), (double)(state->force_n));
 #if HAL_LOGGING_ENABLED
     //Log_RFND();
 #endif
@@ -154,7 +167,8 @@ bool ThrustSensor::_add_backend(AP_ThrustSensor_Backend *backend, uint8_t instan
 void ThrustSensor::detect_instance(uint8_t instance, uint8_t& serial_instance)
 {
 #if AP_THRUSTSENSOR_ENABLED
-    const Type _type = (Type)params[instance].type.get();
+    //const Type _type = (Type)params[instance].type.get();
+    const Type _type = Type::BOTA;
     switch (_type) {
     
         break;

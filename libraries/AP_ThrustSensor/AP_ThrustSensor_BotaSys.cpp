@@ -17,6 +17,7 @@
 
 #include <AP_HAL/AP_HAL.h>
 #include <ctype.h>
+#include <GCS_MAVLink/GCS.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -102,6 +103,12 @@ bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
 */
     // no readings so return false
     reading_m = 1.2345;
+    /*static uint8_t counter = 0;
+    counter++;
+    if (counter > 1) {
+    counter = 0;
+    gcs().send_text(MAV_SEVERITY_CRITICAL, "get_reading %5.3f", (double)(reading_m));
+    }*/   
     return true;
 }
 

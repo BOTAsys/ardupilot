@@ -323,7 +323,6 @@ protected:
 #if HAL_BUTTON_ENABLED
     AP_Button button;
 #endif
-    ThrustSensor thrustsensor;
     RangeFinder rangefinder;
 
     AP_RSSI rssi;

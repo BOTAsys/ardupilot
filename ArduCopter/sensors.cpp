@@ -23,7 +23,9 @@ void Copter::init_rangefinder(void)
    rangefinder_up_state.enabled = rangefinder.has_orientation(ROTATION_PITCH_90);
 #endif
 }
-
+void Copter::init_thrustsensor(void){
+    thrustsensor.init();
+}
 void Copter::read_thrustsensor(void)
 {
     thrustsensor.update();

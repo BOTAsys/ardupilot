@@ -25,56 +25,153 @@ extern const AP_HAL::HAL& hal;
 #define LIGHTWARE_DIST_MAX_CM           10000
 #define LIGHTWARE_OUT_OF_RANGE_ADD_CM   100
 
-//CRC16 checksum calculation 
-#define lo8(x) ((x)&0xFF) 
-#define hi8(x) (((x)>>8)&0xFF) 
+// read - return last value measured by sensor
+bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
+{
+    union DataStatus
+    {
+        struct __attribute__((__packed__))  
+        { 
+            uint16_t app_took_too_long:1; 
+            uint16_t overrange:1; 
+            uint16_t invalid_measurements:1; 
+            uint16_t raw_measurements:1; 
+            uint16_t:12; //reserved 
+        }; 
+        uint8_t bytes[1];
+    };
 
-uint16_t crc_ccitt_update (uint16_t crc, uint8_t data);
+    union AppOutput
+    {
+        struct __attribute__((__packed__))   
+        { 
+            DataStatus status; 
+            float forces[6]; 
+            uint32_t timestamp; 
+            float temperature; 
+        }; 
+        uint8_t bytes[1];
+    };
 
-inline uint16_t calcCrc16X25(uint8_t *data, int len) 
-{ 
-    uint16_t crc = 0xFFFF; 
-    while(len--) crc = crc_ccitt_update(crc, *data++); 
-    return ~crc;
-} 
-    
+    union RxFrame 
+    {
+        struct __attribute__((__packed__))  
+        { 
+            uint8_t header; 
+            AppOutput data; 
+            uint16_t crc; 
+        };
+        uint8_t bytes[1];
+    }frame;
+
+    uint16_t crc16_mcrf4xx(uint8_t *data, size_t len)
+    {
+        uint16_t crc = 0xFFFF;
+        if (!data || len < 0)
+            return crc;
+
+        while (len--) {
+            crc ^= *data++;
+            for (int i=0; i<8; i++) {
+                if (crc & 1)  crc = (crc >> 1) ^ 0x8408;
+                else          crc = (crc >> 1);
+            }
+        }
+        return crc;
+    }
+
+
+    const char frameHeader = 0xAA;
+    bool frameSync_ = false;
+
+    // read any available lines from the sensor
+    int16_t nbytes = uart->available();
+    gcs().send_text(MAV_SEVERITY_CRITICAL, "nbytes: %d", nbytes);
+    while (nbytes-- > 0) {
+        while (!frameSync_)
+        {
+            char possible_header = uart->read(); // or read(uint8_t *buffer, uint16_t count);
+            gcs().send_text(MAV_SEVERITY_CRITICAL, "possible_header: %d", possible_header);
+            if (frameHeader == possible_header)
+            {
+                uart->read((char*)frame.data, sizeof(frame) - sizeof(frame.header));
+                gcs().send_text(MAV_SEVERITY_CRITICAL, "frame.crc: %d", frame.crc);
+                gcs().send_text(MAV_SEVERITY_CRITICAL, "calc_crc: %d", crc16_mcrf4xx(frame.data.bytes, sizeof(frame.data)));
+                if (frame.crc == crc16_mcrf4xx(frame.data.bytes, sizeof(frame.data))) 
+                { 
+                    frameSync_ = true; 
+                } 
+                else 
+                { 
+                /* if there is a frame that included the header 0xAA in 
+                 * a fixed position. Could be the above checking mechanism 
+                 * will get stuck because will find the wrong value as header
+                 * then will remove from the buffer n bytes where n the size 
+                 * of the frame and then will find again exactly the same
+                 * situation the wrong header. So we read on extra byte to make 
+                 * sure next time will start from the position that is size of frame 
+                 * plus 1. It works 
+                 */ 
+                char dummy; 
+                uart->read((char*)&dummy, sizeof(dummy)); 
+                } 
+            } 
+        } 
+        if (frameSync_) 
+        {   
+            /* Read the sensor measurements frame assuming that is alligned with the RX buffer */ 
+            uart->read((char*)frame, sizeof(frame)); 
+            /* Check if the frame is still alligned, otherwise exit */ 
+            if (frame.header != frameHeader) 
+            { 
+                frameSync_ = false;
+                break; 
+            } 
+            // Read and check CRC 16-bit
+            if (frame.crc!=crc16_mcrf4xx(frame.data.bytes, sizeof(frame.data))) 
+            { 
+                break;
+                //skip this measurements 
+            }
+            // Do something with the measurements
+            state.force_n = frame.data.force[2];
+
+            reading_m = state.force_n ;
+            //reading_m = 1.234;
+            if (state.offset_flag) {
+                gcs().send_text(MAV_SEVERITY_CRITICAL, "offset: %5.3f", (double)(state.offset_n));
+                reading_m -= state.offset_n;
+            }
+            /*static uint8_t counter = 0;
+            counter++;
+            if (counter > 1) {
+            counter = 0;
+            gcs().send_text(MAV_SEVERITY_CRITICAL, "get_reading %5.3f", (double)(reading_m));
+            }*/   
+            return true;
+            
+        } 
+    }
+}
 
  
 
 
-// read - return last value measured by sensor
-bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
-{
-    
-    // no readings so return false
-    reading_m = 1.234;
-    if (state.offset_flag) {
-        gcs().send_text(MAV_SEVERITY_CRITICAL, "offset: %5.3f", (double)(state.offset_n));
-        reading_m -= state.offset_n;
-    }
-    /*static uint8_t counter = 0;
-    counter++;
-    if (counter > 1) {
-    counter = 0;
-    gcs().send_text(MAV_SEVERITY_CRITICAL, "get_reading %5.3f", (double)(reading_m));
-    }*/   
-    return true;
-}
-
-/*
-// check to see if distance returned by the LiDAR is a known lost-signal distance flag
-bool AP_RangeFinder_LightWareSerial::is_lost_signal_distance(int16_t distance_cm, int16_t distance_cm_max)
-{
-    if (distance_cm < distance_cm_max + LIGHTWARE_OUT_OF_RANGE_ADD_CM) {
-        // in-range
-        return false;
-    }
-    const int16_t bad_distances[] { 13000, 16000, 23000, 25000 };
-    for (const auto bad_distance_cm : bad_distances) {
-        if (distance_cm == bad_distance_cm) {
-            return true;
-        }
-    }
-    return false;
-}
-*/
+//// read - return last value measured by sensor
+//bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
+//{
+//    
+//    // no readings so return false
+//    reading_m = 1.234;
+//    if (state.offset_flag) {
+//        gcs().send_text(MAV_SEVERITY_CRITICAL, "offset: %5.3f", (double)(state.offset_n));
+//        reading_m -= state.offset_n;
+//    }
+//    /*static uint8_t counter = 0;
+//    counter++;
+//    if (counter > 1) {
+//    counter = 0;
+//    gcs().send_text(MAV_SEVERITY_CRITICAL, "get_reading %5.3f", (double)(reading_m));
+//    }*/   
+//    return true;
+//}

@@ -18,6 +18,7 @@ protected:
     }
 
 private:
+    uint16_t crc16_mcrf4xx(uint8_t *data, size_t len);
     // get a reading
     bool get_reading(float &reading_m) override;
     //bool is_lost_signal_distance(int16_t distance_cm, int16_t distance_cm_max);

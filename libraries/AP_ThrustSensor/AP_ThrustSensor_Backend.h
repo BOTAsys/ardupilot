@@ -91,27 +91,4 @@ protected:
 
     // maximum time between readings before we change state to NoData:
     virtual uint16_t read_timeout_ms() const { return 200; }
-    struct __attribute__((__packed__)) DataStatus
-    {
-        uint16_t app_took_too_long : 1;
-        uint16_t overrange : 1;
-        uint16_t invalid_measurements : 1;
-        uint16_t raw_measurements : 1;
-        uint16_t : 12; // reserved
-    };
-
-    struct __attribute__((__packed__)) AppOutput
-    {
-        DataStatus status;
-        float forces[6];
-        uint32_t timestamp;
-        float temperature;
-    };
-
-    struct __attribute__((__packed__)) RxFrame
-    {
-        uint8_t header;
-        AppOutput data;
-        uint16_t crc16_ccitt;
-    } frame;
 };

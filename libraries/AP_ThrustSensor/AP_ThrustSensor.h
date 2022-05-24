@@ -75,8 +75,9 @@ public:
     // The ThrustSensor_State structure is filled in by the backend driver
     struct ThrustSensor_State {
         float force_n;               // force in newtons
-        uint16_t voltage_mv;            // voltage in millivolts, if applicable, otherwise 0
+        float offset_n;            // voltage in millivolts, if applicable, otherwise 0
         enum ThrustSensor::Status status; // sensor status
+        bool offset_flag;
         uint8_t  thrust_valid_count;     // number of consecutive valid readings (maxes out at 10)
         uint32_t last_reading_ms;       // system time of last successful update from sensor
 
@@ -109,6 +110,8 @@ public:
     // update state of all rangefinders. Should be called at around
     // 10Hz from main loop
     void update(void);
+
+    void offset(void);
 
     AP_ThrustSensor_Backend *get_backend(uint8_t id) const;
 

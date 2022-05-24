@@ -96,8 +96,7 @@ uint32_t AP_ThrustSensor_Backend::initial_baudrate(const uint8_t serial_instance
 */
 bool AP_ThrustSensor_Backend::detect(uint8_t serial_instance)
 {
-    //return AP::serialmanager().have_serial(AP_SerialManager::SerialProtocol_Rangefinder, serial_instance);
-    return true;
+    return AP::serialmanager().have_serial(AP_SerialManager::SerialProtocol_ThrustSensor, serial_instance);
 }
 
 

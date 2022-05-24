@@ -62,6 +62,46 @@ const AP_Param::GroupInfo ThrustSensor::var_info[] = {
     // @Path: AP_ThrustSensor_Wasp.cpp,AP_ThrustSensor_Benewake_CAN.cpp
     AP_SUBGROUPVARPTR(drivers[3], "4_",  60, ThrustSensor, backend_var_info[3]),
 #endif
+
+#if THRUSTSENSOR_MAX_INSTANCES > 4
+    // @Group: 5_
+    // @Path: AP_ThrustSensor_Params.cpp
+    AP_SUBGROUPINFO(params[4], "5_", 33, ThrustSensor, AP_ThrustSensor_Params),
+
+    // @Group: 5_
+    // @Path: AP_ThrustSensor_Wasp.cpp,AP_ThrustSensor_Benewake_CAN.cpp
+    AP_SUBGROUPVARPTR(drivers[4], "5_",  61, ThrustSensor, backend_var_info[4]),
+#endif
+
+#if THRUSTSENSOR_MAX_INSTANCES > 5
+    // @Group: 6_
+    // @Path: AP_ThrustSensor_Params.cpp
+    AP_SUBGROUPINFO(params[5], "6_", 35, ThrustSensor, AP_ThrustSensor_Params),
+
+    // @Group: 6_
+    // @Path: AP_ThrustSensor_Wasp.cpp,AP_ThrustSensor_Benewake_CAN.cpp
+    AP_SUBGROUPVARPTR(drivers[5], "6_",  62, ThrustSensor, backend_var_info[5]),
+#endif
+
+#if THRUSTSENSOR_MAX_INSTANCES > 6
+    // @Group: 7_
+    // @Path: AP_ThrustSensor_Params.cpp
+    AP_SUBGROUPINFO(params[6], "7_", 37, ThrustSensor, AP_ThrustSensor_Params),
+
+    // @Group: 7_
+    // @Path: AP_ThrustSensor_Wasp.cpp,AP_ThrustSensor_Benewake_CAN.cpp
+    AP_SUBGROUPVARPTR(drivers[6], "7_",  63, ThrustSensor, backend_var_info[6]),
+#endif
+
+#if THRUSTSENSOR_MAX_INSTANCES > 7
+    // @Group: 8_
+    // @Path: AP_ThrustSensor_Params.cpp
+    AP_SUBGROUPINFO(params[7], "8_", 39, ThrustSensor, AP_ThrustSensor_Params),
+
+    // @Group: 8_
+    // @Path: AP_ThrustSensor_Wasp.cpp,AP_ThrustSensor_Benewake_CAN.cpp
+    AP_SUBGROUPVARPTR(drivers[7], "8_",  64, ThrustSensor, backend_var_info[7]),
+#endif
     
     AP_GROUPEND
 };
@@ -106,7 +146,9 @@ void ThrustSensor::init(void)
         // initialise status
         state[i].status = Status::NotConnected;
         state[i].thrust_valid_count = 0;
+        state[i].offset_flag = false;
     }
+    offset();
 }
 
 /*
@@ -131,7 +173,7 @@ void ThrustSensor::update(void)
             counter++;
             if (counter > 50) {
                 counter = 0;
-                gcs().send_text(MAV_SEVERITY_CRITICAL, "Thrust %5.3f", (double)state[i].force_n);
+                gcs().send_text(MAV_SEVERITY_CRITICAL, "Thrust[%d]: %5.3f", i, (double)state[i].force_n);
              }
         }
     }
@@ -140,6 +182,22 @@ void ThrustSensor::update(void)
 #if HAL_LOGGING_ENABLED
     //Log_RFND();
 #endif
+}
+
+void ThrustSensor::offset(void)
+{
+    uint8_t N = 25;
+    float sum[num_instances] = {0.0};
+    for (uint8_t i=0; i<N; i++) {
+        ThrustSensor::update();
+        for (uint8_t j=0; j<num_instances; j++) {
+            sum[j] += state[j].force_n;
+        }
+    }
+    for (uint8_t k=0; k<num_instances; k++) {
+        state[k].offset_n = sum[k]/N;
+        state[k].offset_flag = true; 
+    }
 }
 
 bool ThrustSensor::_add_backend(AP_ThrustSensor_Backend *backend, uint8_t instance, uint8_t serial_instance)
@@ -258,7 +316,7 @@ bool ThrustSensor::prearm_healthy(char *failure_msg, const uint8_t failure_msg_l
             hal.util->snprintf(failure_msg, failure_msg_len, "Thrustsensor %X: Not Connected", i + 1);
             return false;
         case Status::NoSync:
-        //case Status::OutOfRangeHigh:
+        //case Status::NoOffset:
         case Status::Good:  
             break;
         }

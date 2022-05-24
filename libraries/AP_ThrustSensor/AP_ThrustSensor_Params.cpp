@@ -40,6 +40,13 @@ const AP_Param::GroupInfo AP_ThrustSensor_Params::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("SKIP", 5, AP_ThrustSensor_Params, skip, 0),
 
+    // @Param: FUNCTION
+    // @DisplayName: Rangefinder function
+    // @Description: Control over what function is used to calculate distance. For a linear function, the distance is (voltage-offset)*scaling. For a inverted function the distance is (offset-voltage)*scaling. For a hyperbolic function the distance is scaling/(voltage-offset). The functions return the distance in meters.
+    // @Values: 0:Linear,1:Inverted,2:Hyperbolic
+    // @User: Standard
+    AP_GROUPINFO("MAXTHRUST", 6, AP_ThrustSensor_Params, maxthrust, 0.0),
+
 
 
     AP_GROUPEND

@@ -18,4 +18,5 @@ public:
     AP_Int8 chop;
     AP_Int8 fast;
     AP_Int8 skip;
+    AP_Float maxthrust;
 };

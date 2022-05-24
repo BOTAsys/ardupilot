@@ -36,7 +36,7 @@ public:
     static bool detect(uint8_t serial_instance);
 
     float force_n() const { return state.force_n; }
-    uint16_t voltage_mv() const { return state.voltage_mv; }
+    float offset_n() const { return state.offset_n; }
     //virtual int16_t max_distance_cm() const { return params.max_distance_cm; }
     //virtual int16_t min_distance_cm() const { return params.min_distance_cm; }
     //int16_t ground_clearance_cm() const { return params.ground_clearance_cm; }
@@ -91,4 +91,27 @@ protected:
 
     // maximum time between readings before we change state to NoData:
     virtual uint16_t read_timeout_ms() const { return 200; }
+    struct __attribute__((__packed__)) DataStatus
+    {
+        uint16_t app_took_too_long : 1;
+        uint16_t overrange : 1;
+        uint16_t invalid_measurements : 1;
+        uint16_t raw_measurements : 1;
+        uint16_t : 12; // reserved
+    };
+
+    struct __attribute__((__packed__)) AppOutput
+    {
+        DataStatus status;
+        float forces[6];
+        uint32_t timestamp;
+        float temperature;
+    };
+
+    struct __attribute__((__packed__)) RxFrame
+    {
+        uint8_t header;
+        AppOutput data;
+        uint16_t crc16_ccitt;
+    } frame;
 };

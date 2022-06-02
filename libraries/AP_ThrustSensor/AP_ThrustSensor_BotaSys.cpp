@@ -24,7 +24,7 @@ extern const AP_HAL::HAL& hal;
 
 #define LIGHTWARE_DIST_MAX_CM           10000
 #define LIGHTWARE_OUT_OF_RANGE_ADD_CM   100
-
+//
 
 uint16_t AP_ThrustSensor_BotaSys::crc16_mcrf4xx(uint8_t *data, size_t len)
 {
@@ -126,9 +126,9 @@ bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
         {   
             /* Read the sensor measurements frame assuming that is alligned with the RX buffer */ 
             uart->read((uint8_t*)&frame, sizeof(frame)); 
-            gcs().send_text(MAV_SEVERITY_CRITICAL, "frame.header: %d", frame.header);
-            gcs().send_text(MAV_SEVERITY_CRITICAL, "frame.crc: %x", frame.crc);
-            gcs().send_text(MAV_SEVERITY_CRITICAL, "calc crc: %x", crc16_mcrf4xx(frame.data.bytes, sizeof(frame.data)));
+            //gcs().send_text(MAV_SEVERITY_CRITICAL, "frame.header: %d", frame.header);
+            //gcs().send_text(MAV_SEVERITY_CRITICAL, "frame.crc: %x", frame.crc);
+            //gcs().send_text(MAV_SEVERITY_CRITICAL, "calc crc: %x", crc16_mcrf4xx(frame.data.bytes, sizeof(frame.data)));
             /* Check if the frame is still alligned, otherwise exit */ 
             if (frame.header != frameHeader) 
             { 
@@ -148,10 +148,10 @@ bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
             reading_m = state.force_n ;
             //reading_m = 1.234;
             if (state.offset_flag) {
-                gcs().send_text(MAV_SEVERITY_CRITICAL, "offset: %5.3f", (double)(state.offset_n));
+                //gcs().send_text(MAV_SEVERITY_CRITICAL, "offset: %5.3f", (double)(state.offset_n));
                 //reading_m -= state.offset_n;
             }
-            gcs().send_text(MAV_SEVERITY_CRITICAL, "reading_m: %5.3f", reading_m);
+            //gcs().send_text(MAV_SEVERITY_CRITICAL, "reading_m: %5.3f", reading_m);
             /*static uint8_t counter = 0;
             counter++;
             if (counter > 1) {

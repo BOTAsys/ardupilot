@@ -443,6 +443,15 @@ struct PACKED log_RFND {
 };
 
 /*
+  thrustsensor
+  */
+struct PACKED log_THRS {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    uint8_t instance;
+    float thrust;
+};
+/*
   terrain log structure
  */
 struct PACKED log_TERRAIN {
@@ -1202,6 +1211,8 @@ LOG_STRUCTURE_FROM_CAMERA \
       "MODE", "QMBB",         "TimeUS,Mode,ModeNum,Rsn", "s---", "F---" }, \
     { LOG_RFND_MSG, sizeof(log_RFND), \
       "RFND", "QBCBB", "TimeUS,Instance,Dist,Stat,Orient", "s#m--", "F-B--", true }, \
+    { LOG_THRS_MSG, sizeof(log_THRS), \
+    "THRS", "QBf", "TimeUS,Instance,Thrust", "s#-", "F--", true }, \
     { LOG_MAV_STATS, sizeof(log_MAV_Stats), \
       "DMS", "QIIIIBBBBBBBBB",         "TimeUS,N,Dp,RT,RS,Fa,Fmn,Fmx,Pa,Pmn,Pmx,Sa,Smn,Smx", "s-------------", "F-------------" }, \
     LOG_STRUCTURE_FROM_BEACON                                       \
@@ -1327,7 +1338,7 @@ enum LogMessages : uint8_t {
     LOG_UNIT_MSG,
     LOG_MULT_MSG,
     LOG_RALLY_MSG,
-
+    LOG_THRS_MSG,
     // LOG_MODE_MSG is used as a check for duplicates. Do not add between this and LOG_FORMAT_MSG
     LOG_MODE_MSG,
 

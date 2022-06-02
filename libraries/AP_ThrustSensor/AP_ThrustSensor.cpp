@@ -62,7 +62,7 @@ const AP_Param::GroupInfo ThrustSensor::var_info[] = {
     // @Path: AP_ThrustSensor_Wasp.cpp,AP_ThrustSensor_Benewake_CAN.cpp
     AP_SUBGROUPVARPTR(drivers[3], "4_",  60, ThrustSensor, backend_var_info[3]),
 #endif
-
+/*
 #if THRUSTSENSOR_MAX_INSTANCES > 4
     // @Group: 5_
     // @Path: AP_ThrustSensor_Params.cpp
@@ -101,8 +101,9 @@ const AP_Param::GroupInfo ThrustSensor::var_info[] = {
     // @Group: 8_
     // @Path: AP_ThrustSensor_Wasp.cpp,AP_ThrustSensor_Benewake_CAN.cpp
     AP_SUBGROUPVARPTR(drivers[7], "8_",  64, ThrustSensor, backend_var_info[7]),
-#endif
+#endif*/
     
+
     AP_GROUPEND
 };
 
@@ -148,7 +149,7 @@ void ThrustSensor::init(void)
         state[i].thrust_valid_count = 0;
         state[i].offset_flag = false;
     }
-    offset();
+    //offset();
 }
 
 /*
@@ -162,43 +163,100 @@ void ThrustSensor::update(void)
     for (uint8_t i=0; i<num_instances; i++) {
         if (drivers[i] != nullptr) {
             //gcs().send_text(MAV_SEVERITY_CRITICAL, "Drivers available");
-            /*if ((Type)params[i].type.get() == Type::NONE) {
+            if ((Type)params[i].type.get() == Type::NONE) {
                 // allow user to disable a rangefinder at runtime
                 state[i].status = Status::NotConnected;
                 state[i].thrust_valid_count = 0;
                 continue;
-            }*/
-            drivers[i]->update();   
+            }
+            drivers[i]->update();
+            state[i].force_norm = state[i].force_n/params[i].maxthrust;
             static uint8_t counter = 0;
             counter++;
             if (counter > 50) {
                 counter = 0;
-                gcs().send_text(MAV_SEVERITY_CRITICAL, "Thrust[%d]: %5.3f", i, (double)state[i].force_n);
+                //gcs().send_text(MAV_SEVERITY_INFO, "Thrust[%d]: %5.3f", i, (double)state[i].force_n);
+                //gcs().send_text(MAV_SEVERITY_CRITICAL, "Offset[%d]: %5.3f", i, (double)state[i].offset_n);
              }
         }
     }
     
     //AP::logger().Write("TSBS", "TimeUS", "Thrust", "Qf", AP_HAL::micros64(), (double)(state->force_n));
 #if HAL_LOGGING_ENABLED
-    //Log_RFND();
+    Log_THRS();
 #endif
 }
 
 void ThrustSensor::offset(void)
 {
-    uint8_t N = 25;
-    float sum[num_instances] = {0.0};
-    for (uint8_t i=0; i<N; i++) {
-        ThrustSensor::update();
-        for (uint8_t j=0; j<num_instances; j++) {
-            sum[j] += state[j].force_n;
+    if (num_instances>0) {
+        uint8_t N = 25;
+        float sum[num_instances] = {0.0};
+        for (uint8_t i=0; i<N; i++) {
+            ThrustSensor::update();
+            for (uint8_t j=0; j<num_instances; j++) {
+                sum[j] += state[j].force_n;
+                //gcs().send_text(MAV_SEVERITY_CRITICAL, "sum[%d] %d: %5.3f", j, i, (double)sum[j]);
+            }
+        }
+        for (uint8_t k=0; k<num_instances; k++) {
+            state[k].offset_n = sum[k]/N;
+            state[k].offset_flag = true; 
         }
     }
-    for (uint8_t k=0; k<num_instances; k++) {
-        state[k].offset_n = sum[k]/N;
-        state[k].offset_flag = true; 
-    }
 }
+
+float ThrustSensor::publish_thrust(uint8_t index) {
+    //if (index > num_instances){
+    //    return 0.0;
+    //}
+    for (uint8_t i=0; i < num_instances; i++) {
+        //gcs().send_text(MAV_SEVERITY_CRITICAL, "params[%d]: %d", i, (uint8_t)params[i].motor);
+        //gcs().send_text(MAV_SEVERITY_CRITICAL, "index: %d", index);
+        if (index == (uint8_t)params[i].motor){
+            return state[i].force_norm;
+        }
+    }
+    /*
+    switch (index)
+    {
+    case 0:
+        //if (0 > num_instances){
+        //return 0.0;
+        //}
+        return state[0].force_norm;
+    case 1:
+        if (1 > num_instances){
+        return 0.0;
+        }
+        return state[1].force_norm;
+    case 2:
+        if (2 > num_instances){
+        return 0.0;
+        }
+        return state[2].force_norm;
+    case 3:
+        if (3 > num_instances){
+        return 0.0;
+        }
+        return state[3].force_norm;
+    default:
+        return 0.0;
+    }
+    */
+   return 0.0;
+}
+
+bool ThrustSensor::publish_offset_flag(){
+    for (uint8_t i=0; i < num_instances; i++){
+        if (state[i].offset_flag == false){
+            return false;
+        }
+    }
+    return true;
+
+}
+
 
 bool ThrustSensor::_add_backend(AP_ThrustSensor_Backend *backend, uint8_t instance, uint8_t serial_instance)
 {
@@ -249,6 +307,7 @@ void ThrustSensor::detect_instance(uint8_t instance, uint8_t& serial_instance)
         // param count could have changed
         AP_Param::invalidate_count();
     }
+
 #endif //AP_THRUSTSENSOR_ENABLED
 }
 
@@ -265,37 +324,35 @@ AP_ThrustSensor_Backend *ThrustSensor::get_backend(uint8_t id) const {
     return drivers[id];
 };
 
-/*
-// Write an RFND (rangefinder) packet
-void ThrustSensor::Log_RFND() const
+void ThrustSensor::Log_THRS() const
 {
-    if (_log_rfnd_bit == uint32_t(-1)) {
-        return;
-    }
-
-    AP_Logger &logger = AP::logger();
-    if (!logger.should_log(_log_rfnd_bit)) {
-        return;
-    }
+    
+    //if (_log_thrs_bit == uint32_t(-1)) {
+    //    return;
+    //}
+//
+    //AP_Logger &logger = AP::logger();
+    //if (!logger.should_log(_log_thrs_bit)) {
+    //    return;
+    //}
+    
 
     for (uint8_t i=0; i<THRUSTSENSOR_MAX_INSTANCES; i++) {
         const AP_ThrustSensor_Backend *s = get_backend(i);
         if (s == nullptr) {
             continue;
         }
-
-        const struct log_RFND pkt = {
-                LOG_PACKET_HEADER_INIT(LOG_RFND_MSG),
+        //gcs().send_text(MAV_SEVERITY_CRITICAL, "Trying Log");
+        const struct log_THRS pkt = {
+                LOG_PACKET_HEADER_INIT(LOG_THRS_MSG),
                 time_us      : AP_HAL::micros64(),
                 instance     : i,
-                dist         : s->distance_cm(),
-                status       : (uint8_t)s->status(),
-                orient       : s->orientation(),
+                thrust       : s->force_n(),
         };
         AP::logger().WriteBlock(&pkt, sizeof(pkt));
     }
 }
-*/
+
 bool ThrustSensor::prearm_healthy(char *failure_msg, const uint8_t failure_msg_len) const
 {
     for (uint8_t i = 0; i < THRUSTSENSOR_MAX_INSTANCES; i++) {

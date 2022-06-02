@@ -39,6 +39,8 @@ public:
         AUTOROTATE =   26,  // Autonomous autorotation
         AUTO_RTL =     27,  // Auto RTL, this is not a true mode, AUTO will report as this mode if entered to perform a DO_LAND_START Landing sequence
         TURTLE =       28,  // Flip over after crash
+        ALT_THRST =    29,   // Use ThrustSensor in Alt_Hold
+        STAB_THRST =   30
     };
 
     // constructor
@@ -1463,6 +1465,32 @@ private:
 };
 #endif
 
+class ModeStabThrst : public Mode {
+
+public:
+    // inherit constructor
+    using Mode::Mode;
+    Number mode_number() const override { return Number::STAB_THRST; }
+
+    virtual void run() override;
+
+    bool requires_GPS() const override { return false; }
+    bool has_manual_throttle() const override { return true; }
+    bool allows_arming(AP_Arming::Method method) const override { return true; };
+    bool is_autopilot() const override { return false; }
+    bool allows_save_trim() const override { return true; }
+    bool allows_autotune() const override { return true; }
+    bool allows_flip() const override { return true; }
+
+protected:
+
+    const char *name() const override { return "STAB_THRST"; }
+    const char *name4() const override { return "STTH"; }
+
+private:
+
+};
+
 class ModeSystemId : public Mode {
 
 public:
@@ -1617,6 +1645,35 @@ private:
     Vector2f motors_input;
 };
 #endif
+
+class ModeAltThrst : public Mode {
+
+public:
+    // inherit constructor
+    using Mode::Mode;
+    Number mode_number() const override { return Number::ALT_THRST; }
+
+    bool init(bool ignore_checks) override;
+    void run() override;
+
+    bool requires_GPS() const override { return false; }
+    bool has_manual_throttle() const override { return false; }
+    bool allows_arming(AP_Arming::Method method) const override { return true; };
+    bool is_autopilot() const override { return false; }
+    bool has_user_takeoff(bool must_navigate) const override {
+        return !must_navigate;
+    }
+    bool allows_autotune() const override { return true; }
+    bool allows_flip() const override { return true; }
+
+protected:
+
+    const char *name() const override { return "ALT_THRST"; }
+    const char *name4() const override { return "ALTT"; }
+
+private:
+
+};
 
 // modes below rely on Guided mode so must be declared at the end (instead of in alphabetical order)
 

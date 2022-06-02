@@ -29,7 +29,7 @@ extern const AP_HAL::HAL& hal;
 */
 AP_ThrustSensor_Backend::AP_ThrustSensor_Backend(ThrustSensor::ThrustSensor_State &_state, AP_ThrustSensor_Params &_params) :
         state(_state),
-		params(_params)
+		params(_params) 
 {
     _backend_type = type();
 }

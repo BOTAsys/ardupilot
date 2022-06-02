@@ -30,6 +30,15 @@ void Copter::read_thrustsensor(void)
 {
     thrustsensor.update();
 }
+float Copter::get_thrust_thrustsensor(uint8_t index){
+    return thrustsensor.publish_thrust(index);
+}
+void Copter::offset_thrustsensor(void){
+    thrustsensor.offset();
+}
+bool Copter::check_offset_thrustsensor(void){
+    return thrustsensor.publish_offset_flag();
+}
 
 // return rangefinder altitude in centimeters
 void Copter::read_rangefinder(void)

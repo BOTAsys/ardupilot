@@ -75,7 +75,8 @@ public:
     // The ThrustSensor_State structure is filled in by the backend driver
     struct ThrustSensor_State {
         float force_n;               // force in newtons
-        float offset_n;            // voltage in millivolts, if applicable, otherwise 0
+        float offset_n;           // voltage in millivolts, if applicable, otherwise 0
+        float force_norm;
         enum ThrustSensor::Status status; // sensor status
         bool offset_flag;
         uint8_t  thrust_valid_count;     // number of consecutive valid readings (maxes out at 10)
@@ -113,12 +114,18 @@ public:
 
     void offset(void);
 
+    float publish_thrust(uint8_t index);
+
+    bool publish_offset_flag();
+
     AP_ThrustSensor_Backend *get_backend(uint8_t id) const;
 
     // get rangefinder type for an ID
     Type get_type(uint8_t id) const {
         return id >= THRUSTSENSOR_MAX_INSTANCES? Type::NONE : Type(params[id].type.get());
     }
+
+    void set_log_thrs_bit(uint32_t log_thrs_bit) { _log_thrs_bit = log_thrs_bit; }
 
     static ThrustSensor *get_singleton(void) { return _singleton; }
 
@@ -138,8 +145,8 @@ private:
 
     bool _add_backend(AP_ThrustSensor_Backend *driver, uint8_t instance, uint8_t serial_instance=0);
 
-    //uint32_t _log_rfnd_bit = -1;
-    //void Log_RFND() const;
+    uint32_t _log_thrs_bit = -1;
+    void Log_THRS() const;
 };
 
 namespace AP {

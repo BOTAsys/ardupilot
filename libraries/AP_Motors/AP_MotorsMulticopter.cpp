@@ -450,8 +450,19 @@ int16_t AP_MotorsMulticopter::output_to_pwm(float actuator)
 // converts desired thrust to linearized actuator output in a range of 0~1
 float AP_MotorsMulticopter::thrust_to_actuator(float thrust_in) const
 {
+    // flightmode available? readings available? which sensor
     thrust_in = constrain_float(thrust_in, 0.0f, 1.0f);
+    //use this as ff
     return _spin_min + (_spin_max - _spin_min) * apply_thrust_curve_and_volt_scaling(thrust_in);
+}
+
+float AP_MotorsMulticopter::thrust_to_actuator_cl(float thrust_in, float thrust_measured) const
+{
+    float p_gain = 1;
+    float ff = AP_MotorsMulticopter::thrust_to_actuator(thrust_in);
+    thrust_in = constrain_float(thrust_in, 0.0f, 1.0f);
+    float p_controller = (thrust_in - thrust_measured)*p_gain;
+    return constrain_float(ff*0.8 + p_controller*0.2, 0.0f, 1.0f);
 }
 
 // inverse of above, tested with AP_Motors/examples/expo_inverse_test

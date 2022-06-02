@@ -174,6 +174,13 @@ Mode *Copter::mode_from_mode_num(const Mode::Number mode)
             ret = &mode_turtle;
             break;
 #endif
+        case Mode::Number::ALT_THRST:
+            ret = &mode_altthrst;
+            break;
+        
+        case Mode::Number::STAB_THRST:
+            ret = &mode_stabthrst;
+            break;
 
         default:
             break;

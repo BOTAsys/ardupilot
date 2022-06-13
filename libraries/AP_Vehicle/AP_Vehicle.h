@@ -308,8 +308,7 @@ protected:
 #endif
 
     // main loop scheduler
-    AP_Scheduler scheduler{FUNCTOR_BIND_MEMBER(&AP_Vehicle::fast_loop, void)};
-    virtual void fast_loop();
+    AP_Scheduler scheduler;
 
     // IMU variables
     // Integration time; time last loop took to run
@@ -394,6 +393,9 @@ protected:
     // update accel calibration
     void accel_cal_update();
 #endif
+
+    // call the arming library's update function
+    void update_arming();
 
     ModeReason control_mode_reason = ModeReason::UNKNOWN;
 

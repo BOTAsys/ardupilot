@@ -80,6 +80,12 @@ const AP_Param::GroupInfo AP_Vehicle::var_info[] = {
     // @Path: ../AP_CustomRotations/AP_CustomRotations.cpp
     AP_SUBGROUPINFO(custom_rotations, "CUST_ROT", 11, AP_Vehicle, AP_CustomRotations),
 
+#if HAL_WITH_ESC_TELEM
+    // @Group: ESC_TLM
+    // @Path: ../AP_ESC_Telem/AP_ESC_Telem.cpp
+    AP_SUBGROUPINFO(esc_telem, "ESC_TLM", 12, AP_Vehicle, AP_ESC_Telem),
+#endif
+
     AP_GROUPEND
 };
 
@@ -101,7 +107,7 @@ void AP_Vehicle::setup()
     // initialise serial port
     serial_manager.init_console();
 
-    hal.console->printf("\n\nInit %s"
+    DEV_PRINTF("\n\nInit %s"
                         "\n\nFree RAM: %u\n",
                         AP::fwversion().fw_string,
                         (unsigned)hal.util->available_memory());
@@ -247,16 +253,6 @@ void AP_Vehicle::loop()
 }
 
 /*
- fast loop callback for all vehicles. This will get called at the end of any vehicle-specific fast loop.
- */
-void AP_Vehicle::fast_loop()
-{
-#if HAL_GYROFFT_ENABLED
-    gyro_fft.sample_gyros();
-#endif
-}
-
-/*
   scheduler table - all regular tasks apart from the fast_loop()
   should be listed here.
 
@@ -283,6 +279,9 @@ SCHED_TASK_CLASS arguments:
 
  */
 const AP_Scheduler::Task AP_Vehicle::scheduler_tasks[] = {
+#if HAL_GYROFFT_ENABLED
+    FAST_TASK_CLASS(AP_GyroFFT,    &vehicle.gyro_fft,       sample_gyros),
+#endif
 #if AP_AIRSPEED_ENABLED
     SCHED_TASK_CLASS(AP_Airspeed,  &vehicle.airspeed,       update,                   10, 100, 41),    // NOTE: the priority number here should be right before Plane's calc_airspeed_errors
 #endif
@@ -297,7 +296,7 @@ const AP_Scheduler::Task AP_Vehicle::scheduler_tasks[] = {
     SCHED_TASK_CLASS(AP_VideoTX,   &vehicle.vtx,            update,                    2, 100, 220),
     SCHED_TASK(send_watchdog_reset_statustext,         0.1,     20, 225),
 #if HAL_WITH_ESC_TELEM
-    SCHED_TASK_CLASS(AP_ESC_Telem, &vehicle.esc_telem,      update,                   10,  50, 230),
+    SCHED_TASK_CLASS(AP_ESC_Telem, &vehicle.esc_telem,      update,                  100,  50, 230),
 #endif
 #if HAL_GENERATOR_ENABLED
     SCHED_TASK_CLASS(AP_Generator, &vehicle.generator,      update,                   10,  50, 235),
@@ -311,6 +310,7 @@ const AP_Scheduler::Task AP_Vehicle::scheduler_tasks[] = {
 #if HAL_EFI_ENABLED
     SCHED_TASK_CLASS(AP_EFI,       &vehicle.efi,            update,                   10, 200, 250),
 #endif
+    SCHED_TASK(update_arming,          1,     50, 253),
 };
 
 void AP_Vehicle::get_common_scheduler_tasks(const AP_Scheduler::Task*& tasks, uint8_t& num_tasks)
@@ -598,6 +598,12 @@ void AP_Vehicle::accel_cal_update()
 #endif
 }
 #endif // HAL_INS_ACCELCAL_ENABLED
+
+// call the arming library's update function
+void AP_Vehicle::update_arming()
+{
+    AP::arming().update();
+}
 
 AP_Vehicle *AP_Vehicle::_singleton = nullptr;
 

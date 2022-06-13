@@ -376,19 +376,19 @@ void Frame::load_frame_params(const char *model_json)
         exit(1);
     }
 
-    enum JSON_TYPE {
-        JSON_FLOAT,
-        JSON_VECTOR3F,
+    enum class VarType {
+        FLOAT,
+        VECTOR3F,
     };
 
     struct json_search {
         const char *label;
         void *ptr;
-        JSON_TYPE t;
+        VarType t;
     };
     
     json_search vars[] = {
-#define FRAME_VAR(s) { #s, &model.s, JSON_TYPE::JSON_FLOAT }
+#define FRAME_VAR(s) { #s, &model.s, VarType::FLOAT }
         FRAME_VAR(mass),
         FRAME_VAR(diagonal_size),
         FRAME_VAR(refSpd),
@@ -410,7 +410,8 @@ void Frame::load_frame_params(const char *model_json)
         FRAME_VAR(slew_max),
         FRAME_VAR(disc_area),
         FRAME_VAR(mdrag_coef),
-        {"moment_inertia", &model.moment_of_inertia, JSON_TYPE::JSON_VECTOR3F},
+        {"moment_inertia", &model.moment_of_inertia, VarType::VECTOR3F},
+        FRAME_VAR(num_motors),
     };
 
     for (uint8_t i=0; i<ARRAY_SIZE(vars); i++) {
@@ -419,18 +420,19 @@ void Frame::load_frame_params(const char *model_json)
             // use default value
             continue;
         }
-        if (vars[i].t == JSON_TYPE::JSON_FLOAT) {
+        if (vars[i].t == VarType::FLOAT) {
             parse_float(v, vars[i].label, *((float *)vars[i].ptr));
 
-        } else if (vars[i].t == JSON_TYPE::JSON_VECTOR3F) {
+        } else if (vars[i].t == VarType::VECTOR3F) {
             parse_vector3(v, vars[i].label, *(Vector3f *)vars[i].ptr);
 
         }
     }
 
     json_search per_motor_vars[] = {
-        {"position", &model.motor_pos, JSON_TYPE::JSON_VECTOR3F},
-        {"vector", &model.motor_thrust_vec, JSON_TYPE::JSON_VECTOR3F},
+        {"position", &model.motor_pos, VarType::VECTOR3F},
+        {"vector", &model.motor_thrust_vec, VarType::VECTOR3F},
+        {"yaw", &model.yaw_factor, VarType::FLOAT},
     };
     char label_name[20];
     for (uint8_t i=0; i<ARRAY_SIZE(per_motor_vars); i++) {
@@ -441,7 +443,10 @@ void Frame::load_frame_params(const char *model_json)
                 // use default value
                 continue;
             }
-            if (per_motor_vars[i].t == JSON_TYPE::JSON_VECTOR3F) {
+            if (vars[i].t == VarType::FLOAT) {
+                parse_float(v, label_name, *(((float *)per_motor_vars[i].ptr) + j));
+
+            } else if (per_motor_vars[i].t == VarType::VECTOR3F) {
                 parse_vector3(v, label_name, *(((Vector3f *)per_motor_vars[i].ptr) + j));
             }
         }
@@ -511,18 +516,23 @@ void Frame::init(const char *frame_str, Battery *_battery)
     float hover_velocity_out = 2 * hover_power / hover_thrust;
     float effective_disc_area = hover_thrust / (0.5 * ref_air_density * sq(hover_velocity_out));
     float velocity_max = hover_velocity_out / sqrtf(model.hoverThrOut);
-    thrust_max = 0.5 * ref_air_density * effective_disc_area * sq(velocity_max);
     float effective_prop_area = effective_disc_area / num_motors;
+    float true_prop_area = model.disc_area / num_motors;
 
     // power_factor is ratio of power consumed per newton of thrust
     float power_factor = hover_power / hover_thrust;
 
     battery->setup(model.battCapacityAh, model.refBatRes, model.maxVoltage);
 
+    if (uint8_t(model.num_motors) != num_motors) {
+        ::printf("Warning model expected %u motors and got %u\n", uint8_t(model.num_motors), num_motors);
+    }
+
     for (uint8_t i=0; i<num_motors; i++) {
         motors[i].setup_params(model.pwmMin, model.pwmMax, model.spin_min, model.spin_max, model.propExpo, model.slew_max,
                                model.diagonal_size, power_factor, model.maxVoltage, effective_prop_area, velocity_max,
-                               model.motor_pos[i], model.motor_thrust_vec[i]);
+                               model.motor_pos[i], model.motor_thrust_vec[i], model.yaw_factor[i], true_prop_area,
+                               model.mdrag_coef);
     }
 
     if (is_zero(model.moment_of_inertia.x) || is_zero(model.moment_of_inertia.y) || is_zero(model.moment_of_inertia.z)) {
@@ -531,26 +541,6 @@ void Frame::init(const char *frame_str, Battery *_battery)
         model.moment_of_inertia.y = model.moment_of_inertia.x;
         model.moment_of_inertia.z = model.mass * 0.5 * sq(model.diagonal_size*0.5);
     }
-
-
-#if 0
-    // useful debug code for thrust curve
-    {
-        motors[0].set_slew_max(0);
-        struct sitl_input input {};
-        for (uint16_t pwm = 1000; pwm < 2000; pwm += 50) {
-            input.servos[0] = pwm;
-
-            Vector3f rot_accel {}, thrust {};
-            Vector3f vel_air_bf {};
-            motors[0].calculate_forces(input, motor_offset, rot_accel, thrust, vel_air_bf,
-                                       ref_air_density, battery->get_voltage());
-            ::printf("pwm[%u] cmd=%.3f thrust=%.3f hovthst=%.3f\n",
-                     pwm, motors[0].pwm_to_command(pwm), -thrust.z*num_motors, hover_thrust);
-        }
-        motors[0].set_slew_max(model.slew_max);
-    }
-#endif
 
     // setup reasonable defaults for battery
     AP_Param::set_default_by_name("SIM_BATT_VOLTAGE", model.maxVoltage);
@@ -586,13 +576,14 @@ void Frame::calculate_forces(const Aircraft &aircraft,
     Vector3f torque;
 
     const float air_density = get_air_density(aircraft.get_location().alt*0.01);
+    const Vector3f gyro = aircraft.get_gyro();
 
     Vector3f vel_air_bf = aircraft.get_dcm().transposed() * aircraft.get_velocity_air_ef();
 
     float current = 0;
     for (uint8_t i=0; i<num_motors; i++) {
         Vector3f mtorque, mthrust;
-        motors[i].calculate_forces(input, motor_offset, mtorque, mthrust, vel_air_bf, air_density, battery->get_voltage());
+        motors[i].calculate_forces(input, motor_offset, mtorque, mthrust, vel_air_bf, gyro, air_density, battery->get_voltage(), use_drag);
         current += motors[i].get_current();
         torque += mtorque;
         thrust += mthrust;
@@ -607,11 +598,8 @@ void Frame::calculate_forces(const Aircraft &aircraft,
     rot_accel.y = torque.y / model.moment_of_inertia.y;
     rot_accel.z = torque.z / model.moment_of_inertia.z;
 
-    body_accel = thrust/aircraft.gross_mass();
-
     if (terminal_rotation_rate > 0) {
         // rotational air resistance
-        const Vector3f &gyro = aircraft.get_gyro();
         rot_accel.x -= gyro.x * radians(400.0) / terminal_rotation_rate;
         rot_accel.y -= gyro.y * radians(400.0) / terminal_rotation_rate;
         rot_accel.z -= gyro.z * radians(400.0) / terminal_rotation_rate;
@@ -620,41 +608,25 @@ void Frame::calculate_forces(const Aircraft &aircraft,
     if (use_drag) {
         // use the model params to calculate drag
         Vector3f drag_bf;
-        drag_bf.x = areaCd * 0.5f * air_density * sq(vel_air_bf.x) +
-                    model.mdrag_coef * fabsf(vel_air_bf.x) * sqrtf(fabsf(thrust.z) * air_density * model.disc_area);
-        if (is_positive(vel_air_bf.x)) {
+        drag_bf.x = areaCd * 0.5f * air_density * sq(vel_air_bf.x);
+        if (is_negative(vel_air_bf.x)) {
             drag_bf.x = -drag_bf.x;
         }
 
-        drag_bf.y = areaCd * 0.5f * air_density * sq(vel_air_bf.y) +
-                    model.mdrag_coef * fabsf(vel_air_bf.y) * sqrtf(fabsf(thrust.z) * air_density * model.disc_area);
-        if (is_positive(vel_air_bf.y)) {
+        drag_bf.y = areaCd * 0.5f * air_density * sq(vel_air_bf.y);
+        if (is_negative(vel_air_bf.y)) {
             drag_bf.y = -drag_bf.y;
         }
 
-        // The application of momentum drag to the Z axis is a 'hack' to compensate for incorrect modelling
-        // of the variation of thust with vel_air_bf.z in SIM_Motor.cpp. If nmot applied, the vehicle will
-        // climb at an unrealistic rate during operation in STABILIZE. TODO replace prop and motor model in
-        // the Motor class with one based on DC motor, mometum disc and blade elemnt theory.
-        drag_bf.z = areaCd * 0.5f * air_density * sq(vel_air_bf.z) +
-                    model.mdrag_coef * fabsf(vel_air_bf.z) * sqrtf(fabsf(thrust.z) * air_density * model.disc_area);
-        if (is_positive(vel_air_bf.z)) {
+        drag_bf.z = areaCd * 0.5f * air_density * sq(vel_air_bf.z);
+        if (is_negative(vel_air_bf.z)) {
             drag_bf.z = -drag_bf.z;
         }
 
-        body_accel += drag_bf / mass;
+        thrust -= drag_bf;
     }
 
-    // add some noise
-    const float gyro_noise = radians(0.1);
-    const float accel_noise = 0.3;
-    const float noise_scale = thrust.length() / thrust_max;
-    rot_accel += Vector3f(aircraft.rand_normal(0, 1),
-                          aircraft.rand_normal(0, 1),
-                          aircraft.rand_normal(0, 1)) * gyro_noise * noise_scale;
-    body_accel += Vector3f(aircraft.rand_normal(0, 1),
-                           aircraft.rand_normal(0, 1),
-                           aircraft.rand_normal(0, 1)) * accel_noise * noise_scale;
+    body_accel = thrust/aircraft.gross_mass();
 }
 
 

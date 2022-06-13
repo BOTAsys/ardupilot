@@ -142,6 +142,10 @@ private:
         // if zero will no be used
         Vector3f motor_pos[12];
         Vector3f motor_thrust_vec[12];
+        float yaw_factor[12] = {0};
+
+        // number of motors
+        float num_motors = 4;
 
     } default_model;
 
@@ -151,20 +155,19 @@ protected:
     void load_frame_params(const char *model_json);
 #endif
 
+    // get air density in kg/m^3
+    float get_air_density(float alt_amsl) const;
+
     struct Model model;
 
 private:
     // exposed area times coefficient of drag
     float areaCd;
     float mass;
-    float thrust_max;
     float last_param_voltage;
 #if AP_SIM_ENABLED
     Battery *battery;
 #endif
-
-    // get air density in kg/m^3
-    float get_air_density(float alt_amsl) const;
 
     // json parsing helpers
 #if USE_PICOJSON

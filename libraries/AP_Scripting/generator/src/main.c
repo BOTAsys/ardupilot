@@ -26,6 +26,11 @@ char keyword_userdata[]            = "userdata";
 char keyword_write[]               = "write";
 char keyword_literal[]             = "literal";
 char keyword_reference[]           = "reference";
+char keyword_deprecate[]           = "deprecate";
+char keyword_manual[]              = "manual";
+char keyword_global[]              = "global";
+char keyword_creation[]            = "creation";
+char keyword_manual_operator[]     = "manual_operator";
 
 // attributes (should include the leading ' )
 char keyword_attr_enum[]    = "'enum";
@@ -57,6 +62,7 @@ enum error_codes {
   ERROR_SINGLETON       = 7, // singletons
   ERROR_DEPENDS         = 8, // dependencies
   ERROR_DOCS            = 9, // Documentation
+  ERROR_GLOBALS         = 10,
 };
 
 struct header {
@@ -131,6 +137,7 @@ enum operator_type {
   OP_SUB  = (1U << 1),
   OP_MUL  = (1U << 2),
   OP_DIV  = (1U << 3),
+  OP_MANUAL = (1U << 4),
   OP_LAST
 };
 
@@ -325,6 +332,7 @@ enum userdata_type {
   UD_USERDATA,
   UD_SINGLETON,
   UD_AP_OBJECT,
+  UD_GLOBAL,
 };
 
 struct argument {
@@ -339,10 +347,17 @@ struct method {
   char *name;
   char *sanatized_name;  // sanatized name of the C++ singleton
   char *rename; // (optional) used for scripting access
+  char *deprecate; // (optional) issue deprecateion warning string on first call
   int line; // line declared on
   struct type return_type;
   struct argument * arguments;
   uint32_t flags; // filled out with TYPE_FLAGS
+};
+
+enum alias_type {
+  ALIAS_TYPE_NONE,
+  ALIAS_TYPE_MANUAL,
+  ALIAS_TYPE_MANUAL_OPERATOR,
 };
 
 struct method_alias {
@@ -350,6 +365,7 @@ struct method_alias {
   char *name;
   char *alias;
   int line;
+  enum alias_type type;
 };
 
 struct userdata_field {
@@ -388,10 +404,12 @@ struct userdata {
   uint32_t operations; // bitset of enum operation_types
   int flags; // flags from the userdata_flags enum
   char *dependency;
+  char *creation; // name of a manual creation function if set, note that this will not be used internally
 };
 
 static struct userdata *parsed_userdata;
 static struct userdata *parsed_ap_objects;
+static struct userdata *parsed_globals;
 
 void sanitize_character(char **str, char character) {
   char *position = strchr(*str, character);
@@ -750,6 +768,14 @@ void handle_method(struct userdata *node) {
       alias->next = node->method_aliases;
       node->method_aliases = alias;
       return;
+
+    } else if (strcmp(token, keyword_deprecate) == 0) {
+      char *deprecate = strtok(NULL, "");
+      if (deprecate == NULL) {
+        error(ERROR_USERDATA, "Expected a deprecate string for %s %s on line", parent_name, name, state.line_num);
+      }
+      string_copy(&(method->deprecate), deprecate);
+      return;
     }
     error(ERROR_USERDATA, "Method %s already exists for %s (declared on %d)", name, parent_name, method->line);
   }
@@ -807,6 +833,24 @@ void handle_method(struct userdata *node) {
     // reset the stack arg_type
     memset(&arg_type, 0, sizeof(struct type));
   }
+}
+
+void handle_manual(struct userdata *node, enum alias_type type) {
+  char *name = next_token();
+  if (name == NULL) {
+    error(ERROR_SINGLETON, "Expected a lua name for manual %s method",node->name);
+  }
+  char *cpp_function_name = next_token();
+  if (cpp_function_name == NULL) {
+    error(ERROR_SINGLETON, "Expected a cpp name for manual %s method",node->name);
+  }
+  struct method_alias *alias = allocate(sizeof(struct method_alias));
+  string_copy(&(alias->name), cpp_function_name);
+  string_copy(&(alias->alias), name);
+  alias->line = state.line_num;
+  alias->type = type;
+  alias->next = node->method_aliases;
+  node->method_aliases = alias;
 }
 
 void handle_operator(struct userdata *data) {
@@ -905,6 +949,23 @@ void handle_userdata(void) {
       }
       string_copy(&(node->dependency), depends);
 
+  } else if (strcmp(type, keyword_manual) == 0) {
+    handle_manual(node, ALIAS_TYPE_MANUAL);
+
+  } else if (strcmp(type, keyword_creation) == 0) {
+      if (node->creation != NULL) {
+        error(ERROR_SINGLETON, "Userdata only support a single creation function");
+      }
+      char *creation = strtok(NULL, "");
+      if (creation == NULL) {
+        error(ERROR_USERDATA, "Expected a creation string for %s",node->name);
+      }
+      string_copy(&(node->creation), creation);
+
+  } else if (strcmp(type, keyword_manual_operator) == 0) {
+    handle_manual(node, ALIAS_TYPE_MANUAL_OPERATOR);
+    node->operations |= OP_MANUAL;
+
   } else {
     error(ERROR_USERDATA, "Unknown or unsupported type for userdata: %s", type);
   }
@@ -979,8 +1040,10 @@ void handle_singleton(void) {
     handle_userdata_field(node);
   } else if (strcmp(type, keyword_reference) == 0) {
     node->flags |= UD_FLAG_REFERENCE;
+  } else if (strcmp(type, keyword_manual) == 0) {
+    handle_manual(node, ALIAS_TYPE_MANUAL);
   } else {
-    error(ERROR_SINGLETON, "Singletons only support renames, methods, semaphore, depends or literal keywords (got %s)", type);
+    error(ERROR_SINGLETON, "Singletons only support renames, methods, semaphore, depends, literal or manual keywords (got %s)", type);
   }
 
   // ensure no more tokens on the line
@@ -1066,10 +1129,35 @@ void handle_ap_object(void) {
   }
 }
 
+void handle_global(void) {
+
+  if (parsed_globals == NULL) {
+    parsed_globals = (struct userdata *)allocate(sizeof(struct userdata));
+    parsed_globals->ud_type = UD_GLOBAL;
+  }
+
+  // read type
+  char *type = next_token();
+  if (type == NULL) {
+    error(ERROR_GLOBALS, "Expected a access type for global");
+  }
+
+  if (strcmp(type, keyword_manual) == 0) {
+    handle_manual(parsed_globals, ALIAS_TYPE_MANUAL);
+  } else {
+    error(ERROR_GLOBALS, "globals only support manual keyword (got %s)", type);
+  }
+
+  // ensure no more tokens on the line
+  if (next_token()) {
+    error(ERROR_GLOBALS, "global contained an unexpected extra token: %s", state.token);
+  }
+}
+
 void sanity_check_userdata(void) {
   struct userdata * node = parsed_userdata;
   while(node) {
-    if ((node->fields == NULL) && (node->methods == NULL)) {
+    if ((node->fields == NULL) && (node->methods == NULL) && (node->method_aliases == NULL)) {
       error(ERROR_USERDATA, "Userdata %s has no fields or methods", node->name);
     }
     node = node->next;
@@ -1486,10 +1574,12 @@ void emit_userdata_fields() {
   struct userdata * node = parsed_userdata;
   while(node) {
     struct userdata_field *field = node->fields;
-    start_dependency(source, node->dependency);
-    while(field) {
-      emit_userdata_field(node, field);
-      field = field->next;
+    if (field) {
+      start_dependency(source, node->dependency);
+      while(field) {
+        emit_userdata_field(node, field);
+        field = field->next;
+      }
     }
     end_dependency(source, node->dependency);
     node = node->next;
@@ -1584,12 +1674,14 @@ void emit_singleton_fields() {
   struct userdata * node = parsed_singletons;
   while(node) {
     struct userdata_field *field = node->fields;
-    start_dependency(source, node->dependency);
-    while(field) {
-      emit_singleton_field(node, field);
-      field = field->next;
+    if (field) {
+      start_dependency(source, node->dependency);
+      while(field) {
+        emit_singleton_field(node, field);
+        field = field->next;
+      }
+      end_dependency(source, node->dependency);
     }
-    end_dependency(source, node->dependency);
     node = node->next;
   }
 }
@@ -1664,6 +1756,16 @@ void emit_userdata_method(const struct userdata *data, const struct method *meth
       fprintf(source, "    }\n\n");
   }
 
+  // emit warning if configured
+  if (method->deprecate != NULL) {
+    fprintf(source, "    static bool warned = false;\n");
+    fprintf(source, "    if (!warned) {\n");
+    fprintf(source, "        lua_scripts::set_and_print_new_error_message(MAV_SEVERITY_WARNING, \"%s:%s %s\");\n", data->rename, method->rename ? method->rename : method->name, method->deprecate);
+    fprintf(source, "        warned = true;\n");
+    fprintf(source, "    }\n\n");
+  }
+
+
   // sanity check number of args called with
   arg_count = 1;
   while (arg != NULL) {
@@ -1680,6 +1782,7 @@ void emit_userdata_method(const struct userdata *data, const struct method *meth
       fprintf(source, "    %s * ud = check_%s(L, 1);\n", data->name, data->sanatized_name);
       break;
     case UD_SINGLETON:
+    case UD_GLOBAL:
       // this was bound early
       break;
     case UD_AP_OBJECT:
@@ -1932,6 +2035,7 @@ const char * get_name_for_operation(enum operator_type op) {
     case OP_DIV:
       return "__div";
       break;
+    case OP_MANUAL:
     case OP_LAST:
       return NULL;
   }
@@ -1963,6 +2067,7 @@ void emit_operators(struct userdata *data) {
       case OP_DIV:
         op_sym = '/';
         break;
+      case OP_MANUAL:
       case OP_LAST:
         return;
     }
@@ -2000,40 +2105,6 @@ void emit_methods(struct userdata *node) {
   }
 }
 
-void emit_userdata_metatables(void) {
-  struct userdata * node = parsed_userdata;
-  while(node) {
-    start_dependency(source, node->dependency);
-    fprintf(source, "const luaL_Reg %s_meta[] = {\n", node->sanatized_name);
-
-    struct userdata_field *field = node->fields;
-    while(field) {
-      fprintf(source, "    {\"%s\", %s_%s},\n", field->rename ? field->rename : field->name, node->sanatized_name, field->name);
-      field = field->next;
-    }
-
-    struct method *method = node->methods;
-    while(method) {
-      fprintf(source, "    {\"%s\", %s_%s},\n", method->rename ? method->rename :  method->name, node->sanatized_name, method->sanatized_name);
-      method = method->next;
-    }
-
-    for (uint32_t i = 1; i < OP_LAST; i = i << 1) {
-      const char * op_name = get_name_for_operation((node->operations) & i);
-      if (op_name == NULL) {
-        continue;
-      }
-      fprintf(source, "    {\"%s\", %s_%s},\n", op_name, node->sanatized_name, op_name);
-    }
-
-    fprintf(source, "    {NULL, NULL}\n");
-    fprintf(source, "};\n");
-    end_dependency(source, node->dependency);
-    fprintf(source, "\n");
-    node = node->next;
-  }
-}
-
 void emit_enum(struct userdata * data) {
     fprintf(source, "struct userdata_enum %s_enums[] = {\n", data->sanatized_name);
     struct userdata_enum *ud_enum = data->enums;
@@ -2066,7 +2137,11 @@ void emit_index(struct userdata *head) {
 
     struct method_alias *alias = node->method_aliases;
     while(alias) {
-      fprintf(source, "    {\"%s\", %s_%s},\n", alias->alias, node->sanatized_name, alias->name);
+      if (alias->type == ALIAS_TYPE_MANUAL) {
+        fprintf(source, "    {\"%s\", %s},\n", alias->alias, alias->name);
+      } else if (alias->type == ALIAS_TYPE_NONE) {
+        fprintf(source, "    {\"%s\", %s_%s},\n", alias->alias, node->sanatized_name, alias->name);
+      }
       alias = alias->next;
     }
 
@@ -2080,6 +2155,13 @@ void emit_index(struct userdata *head) {
           continue;
         }
         fprintf(source, "    {\"%s\", %s_%s},\n", op_name, node->sanatized_name, op_name);
+      }
+      struct method_alias *alias = node->method_aliases;
+      while(alias) {
+        if (alias->type == ALIAS_TYPE_MANUAL_OPERATOR) {
+          fprintf(source, "    {\"%s\", %s},\n", alias->alias, alias->name);
+        }
+        alias = alias->next;
       }
       fprintf(source, "    {NULL, NULL},\n");
       fprintf(source, "};\n\n");
@@ -2196,8 +2278,6 @@ void emit_loaders(void) {
   fprintf(source, "    }\n");
 
   fprintf(source, "\n");
-  fprintf(source, "    load_boxed_numerics(L);\n");
-
   fprintf(source, "}\n\n");
 }
 
@@ -2209,7 +2289,12 @@ void emit_sandbox(void) {
   fprintf(source, "} new_userdata[] = {\n");
   while (data) {
     start_dependency(source, data->dependency);
-    fprintf(source, "    {\"%s\", new_%s},\n", data->rename ? data->rename :  data->name, data->sanatized_name);
+    if (data->creation) {
+      // expose custom creation function to user (not used internally)
+      fprintf(source, "    {\"%s\", %s},\n", data->rename ? data->rename :  data->name, data->creation);
+    } else {
+      fprintf(source, "    {\"%s\", new_%s},\n", data->rename ? data->rename :  data->name, data->sanatized_name);
+    }
     end_dependency(source, data->dependency);
     data = data->next;
   }
@@ -2219,6 +2304,16 @@ void emit_sandbox(void) {
     fprintf(source, "    {\"%s\", new_%s},\n", data->name, data->sanatized_name);
     end_dependency(source, data->dependency);
     data = data->next;
+  }
+  if (parsed_globals) {
+    struct method_alias *manual_aliases = parsed_globals->method_aliases;
+    while (manual_aliases) {
+      if (manual_aliases->type != ALIAS_TYPE_MANUAL) {
+        error(ERROR_GLOBALS, "Globals only support manual methods");
+      }
+      fprintf(source, "    {\"%s\", %s},\n", manual_aliases->alias, manual_aliases->name);
+      manual_aliases = manual_aliases->next;
+    }
   }
   fprintf(source, "};\n\n");
 
@@ -2230,7 +2325,7 @@ void emit_sandbox(void) {
   fprintf(source, "        lua_settable(L, -3);\n");
   fprintf(source, "    }\n");
 
-  // load the userdata allactors
+  // load the userdata allactors and globals
   fprintf(source, "    for (uint32_t i = 0; i < ARRAY_SIZE(new_userdata); i++) {\n");
   fprintf(source, "        lua_pushstring(L, new_userdata[i].name);\n");
   fprintf(source, "        lua_pushcfunction(L, new_userdata[i].fun);\n");
@@ -2238,9 +2333,6 @@ void emit_sandbox(void) {
   fprintf(source, "    }\n");
 
   fprintf(source, "\n");
-  fprintf(source, "    load_boxed_numerics_sandbox(L);\n");
-
-  // load the userdata complex functions
   fprintf(source, "}\n");
 }
 
@@ -2317,6 +2409,10 @@ void emit_docs_type(struct type type, const char *prefix, const char *suffix) {
 void emit_docs_method(const char *name, const char *method_name, struct method *method) {
 
   fprintf(docs, "-- desc\n");
+
+  if (method->deprecate != NULL) {
+    fprintf(docs, "---@deprecated %s\n", method->deprecate);
+  }
 
   struct argument *arg = method->arguments;
   int count = 1;
@@ -2444,22 +2540,25 @@ void emit_docs(struct userdata *node, int is_userdata, int emit_creation) {
     // aliases
     struct method_alias *alias = node->method_aliases;
     while(alias) {
-      // find the method this is a alias of
-      struct method * method = node->methods;
-      while (method != NULL && strcmp(method->name, alias->name)) {
-        method = method-> next;
-      }
-      if (method == NULL) {
-        error(ERROR_DOCS, "Could not fine Method %s to alias to %s", alias->name, alias->alias);
+      // dont do manual bindings
+      if (alias->type == ALIAS_TYPE_NONE) {
+        // find the method this is a alias of
+        struct method * method = node->methods;
+        while (method != NULL && strcmp(method->name, alias->name)) {
+          method = method-> next;
+        }
+        if (method == NULL) {
+          error(ERROR_DOCS, "Could not fine Method %s to alias to %s", alias->name, alias->alias);
+        }
+
+        emit_docs_method(name, alias->alias, method);
+
+        alias = alias->next;
       }
 
-      emit_docs_method(name, alias->alias, method);
-
-      alias = alias->next;
+      fprintf(docs, "\n");
+      free(name);
     }
-
-    fprintf(docs, "\n");
-    free(name);
     node = node->next;
   }
 }
@@ -2560,6 +2659,8 @@ int main(int argc, char **argv) {
         handle_singleton();
       } else if (strcmp (state.token, keyword_ap_object) == 0){
         handle_ap_object();
+      } else if (strcmp (state.token, keyword_global) == 0){
+        handle_global();
       } else {
         error(ERROR_UNKNOWN_KEYWORD, "Expected a keyword, got: %s", state.token);
       }
@@ -2588,6 +2689,10 @@ int main(int argc, char **argv) {
   fprintf(source, "#pragma GCC optimize(\"Os\")\n");
   fprintf(source, "#include \"lua_generated_bindings.h\"\n");
   fprintf(source, "#include <AP_Scripting/lua_boxed_numerics.h>\n");
+  fprintf(source, "#include <AP_Scripting/lua_bindings.h>\n");
+
+  // for set_and_print_new_error_message deprecate warning
+  fprintf(source, "#include <AP_Scripting/lua_scripts.h>\n");
 
   trace(TRACE_GENERAL, "Starting emission");
 

@@ -7,7 +7,7 @@
 #define AP_INERTIAL_SENSOR_ACCEL_VIBE_FILT_HZ           2.0f    // accel vibration filter hz
 #define AP_INERTIAL_SENSOR_ACCEL_PEAK_DETECT_TIMEOUT_MS 500     // peak-hold detector timeout
 
-#include <AP_HAL/AP_HAL.h>
+#include <AP_HAL/AP_HAL_Boards.h>
 
 /**
    maximum number of INS instances available on this platform. If more
@@ -252,6 +252,9 @@ public:
 
     // get the accel filter rate in Hz
     uint16_t get_accel_filter_hz(void) const { return _accel_filter_cutoff; }
+
+    // setup the notch for throttle based tracking
+    bool setup_throttle_gyro_harmonic_notch(float center_freq_hz, float ref);
 
     // write out harmonic notch log messages
     void write_notch_log_messages() const;

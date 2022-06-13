@@ -2882,7 +2882,7 @@ class AutoTest(ABC):
 
             self.start_subsubtest("Stream rate adjustments")
             self.run_cmd_enable_high_latency(True)
-            self.assert_message_rate_hz("HIGH_LATENCY2", 0.2, ndigits=1, mav=mav2)
+            self.assert_message_rate_hz("HIGH_LATENCY2", 0.2, ndigits=1, mav=mav2, sample_period=60)
             for test_rate in (1, 0.1, 2):
                 self.test_rate(
                     "HIGH_LATENCY2 on enabled link",
@@ -3584,13 +3584,11 @@ class AutoTest(ABC):
         self.context_get().message_hooks.append(hook)
 
     def remove_message_hook(self, hook):
+        '''remove hook from list of message hooks.  Assumes it exists exactly
+        once'''
         if self.mav is None:
             return
-        oldlen = len(self.mav.message_hooks)
-        self.mav.message_hooks = list(filter(lambda x: x != hook,
-                                             self.mav.message_hooks))
-        if len(self.mav.message_hooks) == oldlen:
-            raise NotAchievedException("Failed to remove hook")
+        self.mav.message_hooks.remove(hook)
 
     def rootdir(self):
         this_dir = os.path.dirname(__file__)
@@ -3876,7 +3874,13 @@ class AutoTest(ABC):
             wp.z)
         return wp_int
 
-    def load_mission_from_filepath(self, filepath, filename, target_system=1, target_component=1, strict=True):
+    def load_mission_from_filepath(self,
+                                   filepath,
+                                   filename,
+                                   target_system=1,
+                                   target_component=1,
+                                   strict=True,
+                                   reset_current_wp=True):
         self.progress("Loading mission (%s)" % filename)
         path = os.path.join(testdir, filepath, filename)
         wploader = mavwp.MAVWPLoader(
@@ -3886,6 +3890,11 @@ class AutoTest(ABC):
         wploader.load(path)
         wpoints_int = [self.wp_to_mission_item_int(x) for x in wploader.wpoints]
         self.check_mission_upload_download(wpoints_int, strict=strict)
+        if reset_current_wp:
+            # ArduPilot doesn't reset the current waypoint by default
+            # we may be in auto mode and running waypoints, so we
+            # can't check the current waypoint after resetting it.
+            self.set_current_waypoint(0, check_afterwards=False)
         return len(wpoints_int)
 
     def load_mission_using_mavproxy(self, mavproxy, filename):
@@ -4188,8 +4197,12 @@ class AutoTest(ABC):
             # the autopilot at 20Hz - that's our 50Hz wallclock, , not
             # the autopilot's simulated 20Hz, so if speedup is 10 the
             # autopilot will see ~2Hz.
+            timeout = 0.02
+            # ... and 2Hz is too slow when we now run at 100x speedup:
+            timeout /= (self.speedup / 10.0)
+
             try:
-                map_copy = self.rc_queue.get(timeout=0.02)
+                map_copy = self.rc_queue.get(timeout=timeout)
 
                 # 16 packed entries:
                 for i in range(1, 17):
@@ -4929,6 +4942,10 @@ class AutoTest(ABC):
     def context_pop(self):
         """Set parameters to origin values in reverse order."""
         dead = self.contexts.pop()
+        # remove hooks first; these hooks can raise exceptions which
+        # we really don't want...
+        for hook in dead.message_hooks:
+            self.remove_message_hook(hook)
         if dead.sitl_commandline_customised and len(self.contexts):
             self.contexts[-1].sitl_commandline_customised = True
 
@@ -4936,8 +4953,6 @@ class AutoTest(ABC):
         for p in dead.parameters:
             dead_parameters_dict[p[0]] = p[1]
         self.set_parameters(dead_parameters_dict, add_to_context=False)
-        for hook in dead.message_hooks:
-            self.remove_message_hook(hook)
 
     class Context(object):
         def __init__(self, testsuite):
@@ -5632,14 +5647,20 @@ class AutoTest(ABC):
         )
 
     def wait_groundspeed(self, speed_min, speed_max, timeout=30, **kwargs):
+        self.wait_vfr_hud_speed("groundspeed", speed_min, speed_max, timeout=timeout, **kwargs)
+
+    def wait_airspeed(self, speed_min, speed_max, timeout=30, **kwargs):
+        self.wait_vfr_hud_speed("airspeed", speed_min, speed_max, timeout=timeout, **kwargs)
+
+    def wait_vfr_hud_speed(self, field, speed_min, speed_max, timeout=30, **kwargs):
         """Wait for a given ground speed range."""
         assert speed_min <= speed_max, "Minimum speed should be less than maximum speed."
 
-        def get_groundspeed(timeout2):
+        def get_speed(timeout2):
             msg = self.mav.recv_match(type='VFR_HUD', blocking=True, timeout=timeout2)
             if msg:
-                return msg.groundspeed
-            raise MsgRcvTimeoutException("Failed to get Groundspeed")
+                return getattr(msg, field)
+            raise MsgRcvTimeoutException("Failed to get %s" % field)
 
         def validator(value2, target2=None):
             if speed_min <= value2 <= speed_max:
@@ -5648,9 +5669,9 @@ class AutoTest(ABC):
                 return False
 
         self.wait_and_maintain(
-            value_name="Groundspeed",
+            value_name=field,
             target=(speed_min+speed_max)/2,
-            current_value_getter=lambda: get_groundspeed(timeout),
+            current_value_getter=lambda: get_speed(timeout),
             accuracy=(speed_max - speed_min)/2,
             validator=lambda value2, target2: validator(value2, target2),
             timeout=timeout,
@@ -6770,7 +6791,7 @@ Also, ignores heartbeats not from our target system'''
 
         tee = TeeBoth(test_output_filename, 'w', self.mavproxy_logfile)
 
-        start_num_message_hooks = len(self.mav.message_hooks)
+        start_message_hooks = self.mav.message_hooks
 
         prettyname = "%s (%s)" % (name, desc)
         self.start_test(prettyname)
@@ -6784,6 +6805,9 @@ Also, ignores heartbeats not from our target system'''
         try:
             self.check_rc_defaults()
             self.change_mode(self.default_mode())
+            # ArduPilot can still move the current waypoint from 0,
+            # even if we are not in AUTO mode, so cehck_afterwards=False:
+            self.set_current_waypoint(0, check_afterwards=False)
             self.drain_mav()
             self.drain_all_pexpects()
 
@@ -6791,6 +6815,11 @@ Also, ignores heartbeats not from our target system'''
         except Exception as e:
             self.print_exception_caught(e)
             ex = e
+            # reset the message hooks; we've failed-via-exception and
+            # can't expect the hooks to have been cleaned up
+            for h in self.mav.message_hooks:
+                if h not in start_message_hooks:
+                    self.mav.message_hooks.remove(h)
         self.test_timings[desc] = time.time() - start_time
         reset_needed = self.contexts[-1].sitl_commandline_customised
 
@@ -6869,9 +6898,9 @@ Also, ignores heartbeats not from our target system'''
             passed = False
 
         # make sure we don't leave around stray listeners:
-        if len(self.mav.message_hooks) != start_num_message_hooks:
-            self.progress("Stray message listeners: %s" %
-                          str(self.mav.message_hooks))
+        if len(self.mav.message_hooks) != len(start_message_hooks):
+            self.progress("Stray message listeners: %s vs start %s" %
+                          (str(self.mav.message_hooks), str(start_message_hooks)))
             passed = False
 
         if passed:
@@ -6901,6 +6930,7 @@ Also, ignores heartbeats not from our target system'''
 
         if not self.is_tracker(): # FIXME - more to the point, fix Tracker's mission handling
             self.clear_mission(mavutil.mavlink.MAV_MISSION_TYPE_ALL)
+            self.set_current_waypoint(0, check_afterwards=False)
 
         tee.close()
 
@@ -7157,7 +7187,9 @@ Also, ignores heartbeats not from our target system'''
         tstart = self.get_sim_time_cached()
         remaining_to_receive = set(range(0, m.count))
         next_to_request = 0
-        timeout = (10 + m.count/10)
+        timeout = m.count / 10
+        timeout *= self.speedup / 10.0
+        timeout += 10
         while True:
             if self.get_sim_time_cached() - tstart > timeout:
                 raise NotAchievedException("timeout downloading type=%s" %
@@ -7165,7 +7197,8 @@ Also, ignores heartbeats not from our target system'''
             if len(remaining_to_receive) == 0:
                 self.progress("All received")
                 return items
-            self.progress("Requesting item %u" % next_to_request)
+            self.progress("Requesting item %u (remaining=%u)" %
+                          (next_to_request, len(remaining_to_receive)))
             self.mav.mav.mission_request_int_send(target_system,
                                                   target_component,
                                                   next_to_request,
@@ -7228,6 +7261,10 @@ Also, ignores heartbeats not from our target system'''
         '''returns target location based on POSITION_TARGET_GLOBAL_INT'''
         m = self.mav.messages.get("POSITION_TARGET_GLOBAL_INT", None)
         return mavutil.location(m.lat_int*1e-7, m.lon_int*1e-7, m.alt)
+
+    def current_waypoint(self):
+        m = self.assert_receive_message('MISSION_CURRENT')
+        return m.seq
 
     def distance_to_nav_target(self, use_cached_nav_controller_output=False):
         '''returns distance to waypoint navigation target in metres'''

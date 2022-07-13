@@ -39,7 +39,9 @@ void Copter::offset_thrustsensor(void){
 bool Copter::check_offset_thrustsensor(void){
     return thrustsensor.publish_offset_flag();
 }
-
+bool Copter::check_state_thrustsensor(uint8_t index){
+    return thrustsensor.publish_status(index);
+}
 // return rangefinder altitude in centimeters
 void Copter::read_rangefinder(void)
 {

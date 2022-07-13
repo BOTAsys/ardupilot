@@ -1,4 +1,6 @@
 #include "Copter.h"
+#include <AC_PID/AC_PID.h>
+
 
 
 /*
@@ -19,6 +21,15 @@ bool ModeAltThrst::init(bool ignore_checks)
     pos_control->set_correction_speed_accel_z(-get_pilot_speed_dn(), g.pilot_speed_up, g.pilot_accel_z);
     //if (!copter.check_offset_thrustsensor())
     //    copter.offset_thrustsensor();
+    /*mot1pid(kp, ki, kd, kff, imax, filtt, filte, filtd, dt);
+    mot2pid(kp, ki, kd, kff, imax, filtt, filte, filtd, dt);
+    mot3pid(kp, ki, kd, kff, imax, filtt, filte, filtd, dt);
+    mot4pid(kp, ki, kd, kff, imax, filtt, filte, filtd, dt);
+    mot1pid.reset_I();
+    mot2pid.reset_I();
+    mot3pid.reset_I();
+    mot4pid.reset_I();*/
+
     return true;
 }
 
@@ -102,3 +113,14 @@ void ModeAltThrst::run()
     // run the vertical position controller and set output throttle
     pos_control->update_z_controller();
 }
+/*float run_thrustcontrol_pid (float thrust_in, float thrust_actual, uint8_t instance) {
+    switch (instance)
+    {
+    case 0:
+        
+        break;
+    
+    default:
+        break;
+    }
+}*/

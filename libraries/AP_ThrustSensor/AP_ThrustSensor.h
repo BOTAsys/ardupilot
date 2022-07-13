@@ -20,6 +20,9 @@
 #include <GCS_MAVLink/GCS_MAVLink.h>
 #include <AP_MSP/msp.h>
 #include "AP_ThrustSensor_Params.h"
+#include <Filter/NotchFilter.h>
+#include <Filter/HarmonicNotchFilter.h>
+#include <Filter/Filter.h>
 
 #ifndef AP_THRUSTSENSOR_ENABLED
 #define AP_THRUSTSENSOR_ENABLED 1
@@ -28,7 +31,7 @@
 // Maximum number of range finder instances available on this platform
 #ifndef THRUSTSENSOR_MAX_INSTANCES 
   #if AP_THRUSTSENSOR_ENABLED
-  #define THRUSTSENSOR_MAX_INSTANCES 8
+  #define THRUSTSENSOR_MAX_INSTANCES 4
   #else
   #define THRUSTSENSOR_MAX_INSTANCES 1
   #endif
@@ -68,15 +71,18 @@ public:
     enum class Status {
         NotConnected = 0,
         NoData,
-        NoSync,
+        NoOffset,
+        //NoSync,
         Good
     };
 
     // The ThrustSensor_State structure is filled in by the backend driver
     struct ThrustSensor_State {
         float force_n;               // force in newtons
-        float offset_n;           // voltage in millivolts, if applicable, otherwise 0
+        float force_filt_n;
+        float offset_n = 0.0;           // voltage in millivolts, if applicable, otherwise 0
         float force_norm;
+        float temp_c;
         enum ThrustSensor::Status status; // sensor status
         bool offset_flag;
         uint8_t  thrust_valid_count;     // number of consecutive valid readings (maxes out at 10)
@@ -116,7 +122,9 @@ public:
 
     float publish_thrust(uint8_t index);
 
-    bool publish_offset_flag();
+    bool publish_status(uint8_t index);
+
+    bool publish_offset_flag(void);
 
     AP_ThrustSensor_Backend *get_backend(uint8_t id) const;
 
@@ -128,6 +136,39 @@ public:
     void set_log_thrs_bit(uint32_t log_thrs_bit) { _log_thrs_bit = log_thrs_bit; }
 
     static ThrustSensor *get_singleton(void) { return _singleton; }
+
+    // structure per harmonic notch filter. This is public to allow for
+    // easy iteration
+    /*class HarmonicNotch {
+    public:
+        HarmonicNotchFilterParams params;
+        HarmonicNotchFilterFloat filter[12];
+
+        uint8_t num_dynamic_notches;
+
+        // the current center frequency for the notch
+        float calculated_notch_freq_hz[12];
+        uint8_t num_calculated_notch_frequencies;
+
+        // Update the harmonic notch frequency
+        void update_notch_freq_hz(float scaled_freq);
+
+        // Update the harmonic notch frequencies
+        void update_notch_frequencies_hz(uint8_t num_freqs, const float scaled_freq[]);
+
+        // runtime update of notch parameters
+        void update_params(uint8_t instance, bool converging, float gyro_rate);
+
+        // Update the harmonic notch frequencies
+        void update_freq_hz(float scaled_freq);
+        void update_frequencies_hz(uint8_t num_freqs, const float scaled_freq[]);
+        
+    private:
+        // support for updating harmonic filter at runtime
+        float last_center_freq_hz[12];
+        float last_bandwidth_hz[12];
+        float last_attenuation_dB[12];
+    } harmonic_notches[2];*/
 
 protected:
     AP_ThrustSensor_Params params[THRUSTSENSOR_MAX_INSTANCES];

@@ -888,6 +888,7 @@ private:
     float get_thrust_thrustsensor(uint8_t index);
     void offset_thrustsensor(void);
     bool check_offset_thrustsensor(void);
+    bool check_state_thrustsensor(uint8_t index);
 
     // RC_Channel.cpp
     void save_trim();
@@ -1019,6 +1020,7 @@ public:
     void failsafe_check();      // failsafe.cpp
     uint8_t publish_mode() {return get_mode();}
     float publish_thrust(uint8_t index) {return get_thrust_thrustsensor(index);}
+    bool publish_state_thrustsensor(uint8_t index) {return check_state_thrustsensor(index);}
 };
 
 extern Copter copter;

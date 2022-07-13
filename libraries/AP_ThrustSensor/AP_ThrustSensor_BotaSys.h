@@ -64,8 +64,9 @@ public:
 class AP_BotaForceTorqueSensorComm : public BotaForceTorqueSensorComm
 {
   public:
-  int serialReadBytes(uint8_t* data, size_t len) {return uart->read(data, len);}
-  int serialAvailable() {return uart->available();}
+  AP_HAL::UARTDriver *serial;
+  int serialReadBytes(uint8_t* data, size_t len) override {return serial->read(data, len);}
+  int serialAvailable() override {return serial->available();}
 };
 
 class AP_ThrustSensor_BotaSys : public AP_ThrustSensor_Backend

@@ -121,4 +121,5 @@ private:
 };
 
 typedef HarmonicNotchFilter<Vector3f> HarmonicNotchFilterVector3f;
+typedef HarmonicNotchFilter<float> HarmonicNotchFilterFloat;
 

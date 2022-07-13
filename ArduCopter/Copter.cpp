@@ -154,7 +154,7 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] = {
 #endif
     SCHED_TASK(auto_disarm_check,     10,     50,  27),
     SCHED_TASK(auto_trim,             10,     75,  30),
-    SCHED_TASK(read_thrustsensor,    100,    100,  32),
+    SCHED_TASK(read_thrustsensor,    400,    100,  32),
 #if RANGEFINDER_ENABLED == ENABLED
     SCHED_TASK(read_rangefinder,      20,    100,  33),
 #endif
@@ -483,6 +483,9 @@ void Copter::fourhundred_hz_logging()
     if (should_log(MASK_LOG_ATTITUDE_FAST) && !copter.flightmode->logs_attitude()) {
         Log_Write_Attitude();
     }
+    if (should_log(MASK_LOG_RCOUT)) {
+        logger.Write_RCOUT();
+    }
 }
 
 // ten_hz_logging_loop
@@ -506,9 +509,9 @@ void Copter::ten_hz_logging_loop()
             logger.Write_RSSI();
         }
     }
-    if (should_log(MASK_LOG_RCOUT)) {
-        logger.Write_RCOUT();
-    }
+    //if (should_log(MASK_LOG_RCOUT)) {
+    //    logger.Write_RCOUT();
+    //}
     if (should_log(MASK_LOG_NTUN) && (flightmode->requires_GPS() || landing_with_GPS() || !flightmode->has_manual_throttle())) {
         pos_control->write_log();
     }

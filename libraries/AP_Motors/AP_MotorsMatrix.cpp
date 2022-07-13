@@ -172,10 +172,16 @@ void AP_MotorsMatrix::output_to_motors()
             // set motor output based on thrust requests
             for (i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
                 if (motor_enabled[i]) {
-                    //gcs().send_text(MAV_SEVERITY_CRITICAL, "publish_mode: %i", copter.publish_mode());
-                    if ((copter.publish_mode() == 29U || copter.publish_mode() == 30U) && copter.publish_thrust(i) != 0.0){
+                    //gcs().send_text(MAV_SEVERITY_INFO, "publish_state[%d]: %d", i,  (uint8_t)copter.publish_state_thrustsensor(i));
+                    if ((copter.publish_mode() == 29U || copter.publish_mode() == 30U) && copter.publish_state_thrustsensor(i)){
                         //gcs().send_text(MAV_SEVERITY_INFO, "CL");
-                        set_actuator_with_slew(_actuator[i], thrust_to_actuator_cl(_thrust_rpyt_out[i], copter.publish_thrust(i)));
+                        //static uint8_t counter = 0;
+                        //counter++;
+                        //if (counter > 50) {
+                        //    counter = 0;
+                        //    gcs().send_text(MAV_SEVERITY_INFO, "Thrust[%d]: %5.3f", i, (double)copter.publish_thrust(i));
+                        //}
+                        set_actuator_with_slew(_actuator[i], thrust_to_actuator_cl(_thrust_rpyt_out[i], copter.publish_thrust(i), i));
                     }
                     else {
                         set_actuator_with_slew(_actuator[i], thrust_to_actuator(_thrust_rpyt_out[i]));

@@ -51,6 +51,12 @@ bool AP_ThrustSensor_Backend::has_data() const {
 // update status based on distance measurement
 void AP_ThrustSensor_Backend::update_status()
 {
+    if (!state.offset_flag) {
+        set_status(ThrustSensor::Status::NoOffset);
+    }
+    else {
+        set_status(ThrustSensor::Status::Good);
+    }
     /*// check distance
     if (state.distance_m > max_distance_cm() * 0.01f) {
         set_status(ThrustSensor::Status::OutOfRangeHigh);

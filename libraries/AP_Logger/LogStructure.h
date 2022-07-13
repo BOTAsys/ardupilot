@@ -466,6 +466,8 @@ struct PACKED log_THRS {
     uint64_t time_us;
     uint8_t instance;
     float thrust;
+    float thrust_filt;
+    float temp;
 };
 /*
   terrain log structure
@@ -1258,7 +1260,7 @@ LOG_STRUCTURE_FROM_CAMERA \
     { LOG_RFND_MSG, sizeof(log_RFND), \
       "RFND", "QBCBB", "TimeUS,Instance,Dist,Stat,Orient", "s#m--", "F-B--", true }, \
     { LOG_THRS_MSG, sizeof(log_THRS), \
-    "THRS", "QBf", "TimeUS,Instance,Thrust", "s#-", "F--", true }, \
+    "THRS", "QBfff", "TimeUS,Instance,Thrust,Thrust_Filt,Temp", "s#--O", "F----", true }, \
     { LOG_MAV_STATS, sizeof(log_MAV_Stats), \
       "DMS", "QIIIIBBBBBBBBB",         "TimeUS,N,Dp,RT,RS,Fa,Fmn,Fmx,Pa,Pmn,Pmx,Sa,Smn,Smx", "s-------------", "F-------------" }, \
     LOG_STRUCTURE_FROM_BEACON                                       \

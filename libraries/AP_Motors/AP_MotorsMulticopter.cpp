@@ -456,13 +456,18 @@ float AP_MotorsMulticopter::thrust_to_actuator(float thrust_in) const
     return _spin_min + (_spin_max - _spin_min) * apply_thrust_curve_and_volt_scaling(thrust_in);
 }
 
-float AP_MotorsMulticopter::thrust_to_actuator_cl(float thrust_in, float thrust_measured) const
+float AP_MotorsMulticopter::thrust_to_actuator_cl(float thrust_in, float thrust_measured, uint8_t instance) const
 {
-    float p_gain = 1;
-    float ff = AP_MotorsMulticopter::thrust_to_actuator(thrust_in);
+    
+    float ff = AP_MotorsMulticopter::thrust_to_actuator(thrust_in)*1.0f;
     thrust_in = constrain_float(thrust_in, 0.0f, 1.0f);
-    float p_controller = (thrust_in - thrust_measured)*p_gain;
-    return constrain_float(ff*0.8 + p_controller*0.2, 0.0f, 1.0f);
+    float p = constrain_float((thrust_in - thrust_measured)*1.0f, -0.3f*thrust_in, 0.3f*thrust_in);
+    //gcs().send_text(MAV_SEVERITY_INFO, "ff: %5.3f", (double)ff);
+    //gcs().send_text(MAV_SEVERITY_INFO, "p: %5.3f", (double)p);
+    return constrain_float(ff + p, 0.0f, 1.0f);
+    /*thrust_in = constrain_float(thrust_in, 0.0f, 1.0f);
+    return constrain_float(run_thrustcontroller(thrust_in, thrust_measured, instance), 0.0f, 1.0f)*/
+
 }
 
 // inverse of above, tested with AP_Motors/examples/expo_inverse_test

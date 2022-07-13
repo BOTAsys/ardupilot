@@ -130,7 +130,6 @@ void ThrustSensor::init(void)
         return;
     }
     init_done = true;
-
     for (uint8_t i=0, serial_instance = 0; i<THRUSTSENSOR_MAX_INSTANCES; i++) {
         // serial_instance will be increased inside detect_instance
         // if a serial driver is loaded for this instance
@@ -148,7 +147,11 @@ void ThrustSensor::init(void)
         state[i].status = Status::NotConnected;
         state[i].thrust_valid_count = 0;
         state[i].offset_flag = false;
+        //gcs().send_text(MAV_SEVERITY_CRITICAL, "Init called");
+        //drivers[i]->notch.init(400.0f, 30.0f, 10.0f, 40.0f);
+        //drivers[i]->notch.reset();
     }
+    
     //offset();
 }
 
@@ -158,6 +161,7 @@ void ThrustSensor::init(void)
  */
 void ThrustSensor::update(void)
 {
+    //gcs().send_text(MAV_SEVERITY_INFO, "num_instances: [%u]", num_instances);
     //gcs().send_text(MAV_SEVERITY_CRITICAL, "num_instances %5.3f", (double)num_instances);
     //gcs().send_text(MAV_SEVERITY_CRITICAL, "init_done %5.3f", (double)init_done);
     for (uint8_t i=0; i<num_instances; i++) {
@@ -170,14 +174,17 @@ void ThrustSensor::update(void)
                 continue;
             }
             drivers[i]->update();
-            state[i].force_norm = state[i].force_n/params[i].maxthrust;
+            state[i].force_filt_n = drivers[i]->lpf.apply(state[i].force_n);
+            //state[i].force_filt_n = drivers[i]->avg.apply(state[i].force_n);
+            //state[i].force_filt_n = drivers[i]->notch.apply(state[i].force_n);
+            state[i].force_norm = state[i].force_filt_n/params[i].maxthrust;
             static uint8_t counter = 0;
             counter++;
-            if (counter > 50) {
+            //if (counter > 50) {
                 counter = 0;
                 //gcs().send_text(MAV_SEVERITY_INFO, "Thrust[%d]: %5.3f", i, (double)state[i].force_n);
                 //gcs().send_text(MAV_SEVERITY_CRITICAL, "Offset[%d]: %5.3f", i, (double)state[i].offset_n);
-             }
+            // }
         }
     }
     
@@ -214,6 +221,7 @@ float ThrustSensor::publish_thrust(uint8_t index) {
         //gcs().send_text(MAV_SEVERITY_CRITICAL, "params[%d]: %d", i, (uint8_t)params[i].motor);
         //gcs().send_text(MAV_SEVERITY_CRITICAL, "index: %d", index);
         if (index == (uint8_t)params[i].motor){
+            //gcs().send_text(MAV_SEVERITY_INFO, "instance: %d", i);
             return state[i].force_norm;
         }
     }
@@ -247,15 +255,33 @@ float ThrustSensor::publish_thrust(uint8_t index) {
    return 0.0;
 }
 
-bool ThrustSensor::publish_offset_flag(){
+bool ThrustSensor::publish_status(uint8_t index){
+    
+    for (uint8_t i=0; i < num_instances; i++) {
+        //gcs().send_text(MAV_SEVERITY_CRITICAL, "params[%d]: %d", i, (uint8_t)params[i].motor);
+        //gcs().send_text(MAV_SEVERITY_CRITICAL, "index: %d", index);
+        if (index == (uint8_t)params[i].motor){
+            switch (drivers[i]->status()) {
+                case Status::NoData:
+                case Status::NotConnected:
+                case Status::NoOffset:
+                    return false;
+                case Status::Good:  
+                    return true;
+            }
+        }
+    }
+    return false;
+}
+    
+bool ThrustSensor::publish_offset_flag() {
     for (uint8_t i=0; i < num_instances; i++){
         if (state[i].offset_flag == false){
             return false;
         }
     }
     return true;
-
-}
+}      
 
 
 bool ThrustSensor::_add_backend(AP_ThrustSensor_Backend *backend, uint8_t instance, uint8_t serial_instance)
@@ -348,6 +374,8 @@ void ThrustSensor::Log_THRS() const
                 time_us      : AP_HAL::micros64(),
                 instance     : i,
                 thrust       : s->force_n(),
+                thrust_filt  : s->force_filt_n(),
+                temp         : s->temp_c(),
         };
         AP::logger().WriteBlock(&pkt, sizeof(pkt));
     }
@@ -372,8 +400,10 @@ bool ThrustSensor::prearm_healthy(char *failure_msg, const uint8_t failure_msg_l
         case Status::NotConnected:
             hal.util->snprintf(failure_msg, failure_msg_len, "Thrustsensor %X: Not Connected", i + 1);
             return false;
-        case Status::NoSync:
-        //case Status::NoOffset:
+        //case Status::NoSync:
+        case Status::NoOffset:
+            hal.util->snprintf(failure_msg, failure_msg_len, "Thrustsensor %X: No Offset", i + 1);
+            return false;
         case Status::Good:  
             break;
         }

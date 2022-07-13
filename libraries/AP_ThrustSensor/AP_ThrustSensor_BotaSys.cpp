@@ -28,6 +28,9 @@ extern const AP_HAL::HAL& hal;
 // read - return last value measured by sensor
 bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
 {
+    if (uart != nullptr) {
+        sensorComm.serial = uart;
+    }
     switch(sensorComm.readFrame())
     {
         case BotaForceTorqueSensorComm::VALID_FRAME:
@@ -41,11 +44,13 @@ bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
                 // Do something with the good measurements
                 state.force_n = sensorComm.frame.data.forces[2];
                 reading_m = state.force_n ;
+                state.temp_c = sensorComm.frame.data.temperature;
                 if (state.offset_flag) {
                     //gcs().send_text(MAV_SEVERITY_CRITICAL, "offset: %5.3f", (double)(state.offset_n));
-                    //reading_m -= state.offset_n;
+                    reading_m -= state.offset_n;
                 }
                 //gcs().send_text(MAV_SEVERITY_CRITICAL, "reading_m: %5.3f", reading_m);
+                //gcs().send_text(MAV_SEVERITY_CRITICAL, "temp_c: %5.3f", state.temp_c);
                 /*static uint8_t counter = 0;
                 counter++;
                 if (counter > 1) {
@@ -56,10 +61,10 @@ bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
             }
         break;
         case BotaForceTorqueSensorComm::NOT_VALID_FRAME:
-            gcs().send_text(MAV_SEVERITY_CRITICAL, "No valid frame. crc count: %d", sensorComm.get_crc_count());
+            gcs().send_text(MAV_SEVERITY_ERROR, "No valid frame. crc count: %u", (unsigned int)(sensorComm.get_crc_count()));
         break;
         case BotaForceTorqueSensorComm::NOT_ALLIGNED_FRAME:
-            gcs().send_text(MAV_SEVERITY_CRITICAL, "lost sync, trying to reconnect");
+            gcs().send_text(MAV_SEVERITY_ERROR, "lost sync, trying to reconnect");
         break;
         case BotaForceTorqueSensorComm::NO_FRAME:
         break;
@@ -73,7 +78,7 @@ BotaForceTorqueSensorComm::BotaForceTorqueSensorComm()
   _synced = false;
 }
 
-static uint16_t BotaForceTorqueSensorComm::crc16_mcrf4xx(uint8_t *data, size_t len)
+uint16_t BotaForceTorqueSensorComm::crc16_mcrf4xx(uint8_t *data, size_t len)
 {
     uint16_t crc = 0xffff;
     while (len--) {
@@ -84,7 +89,7 @@ static uint16_t BotaForceTorqueSensorComm::crc16_mcrf4xx(uint8_t *data, size_t l
     return crc;
 }
 
-static uint16_t BotaForceTorqueSensorComm::crc16_ccitt_false(uint8_t* data, size_t len)
+uint16_t BotaForceTorqueSensorComm::crc16_ccitt_false(uint8_t* data, size_t len)
 {
     uint16_t crc = 0xffff;
     while (len--) {
@@ -95,7 +100,7 @@ static uint16_t BotaForceTorqueSensorComm::crc16_ccitt_false(uint8_t* data, size
     return crc;
 }
 
-static uint16_t BotaForceTorqueSensorComm::crc16_x25(uint8_t* data, size_t len)
+uint16_t BotaForceTorqueSensorComm::crc16_x25(uint8_t* data, size_t len)
 {
     uint16_t crc = 0xffff;
     while (len--) {

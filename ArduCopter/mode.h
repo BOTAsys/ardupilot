@@ -1660,7 +1660,17 @@ private:
 #endif
 
 class ModeAltThrst : public Mode {
-
+/*private:
+    float kp = 1.0f;
+    float ki = 1.0f;
+    float kd = 1.0f;
+    float kff = 0.6f;
+    float imax = 1.0f;
+    float filtt = 0.0f;
+    float filte = 0.0f;
+    float filtd = 20.0f;
+    float dt = 0.01f;
+*/
 public:
     // inherit constructor
     using Mode::Mode;
@@ -1678,13 +1688,16 @@ public:
     }
     bool allows_autotune() const override { return true; }
     bool allows_flip() const override { return true; }
-
+    /*float run_thrustcontrol_pid (float thrust_in, float thrust_actual, AC_PID pid, uint8_t instance);
+    AC_PID mot1pid;
+    AC_PID mot2pid;
+    AC_PID mot3pid;
+    AC_PID mot4pid;
+    */
 protected:
 
     const char *name() const override { return "ALT_THRST"; }
     const char *name4() const override { return "ALTT"; }
-
-private:
 
 };
 

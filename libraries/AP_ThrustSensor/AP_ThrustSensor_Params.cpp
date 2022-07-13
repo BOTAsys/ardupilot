@@ -45,7 +45,7 @@ const AP_Param::GroupInfo AP_ThrustSensor_Params::var_info[] = {
     // @Description: Control over what function is used to calculate distance. For a linear function, the distance is (voltage-offset)*scaling. For a inverted function the distance is (offset-voltage)*scaling. For a hyperbolic function the distance is scaling/(voltage-offset). The functions return the distance in meters.
     // @Increment: 0.1
     // @User: Standard
-    AP_GROUPINFO("MAXTHST", 6, AP_ThrustSensor_Params, maxthrust, 25.9),
+    AP_GROUPINFO("MAXTHST", 6, AP_ThrustSensor_Params, maxthrust, 25.8),
 
     // @Param: FUNCTION
     // @DisplayName: Rangefinder function
@@ -53,6 +53,14 @@ const AP_Param::GroupInfo AP_ThrustSensor_Params::var_info[] = {
     // @Increment: 0.1
     // @User: Standard
     AP_GROUPINFO("MOTOR", 7, AP_ThrustSensor_Params, motor, -1),
+
+    // @Group: HNTCH_
+    // @Path: ../Filter/HarmonicNotchFilter.cpp
+    //AP_SUBGROUPINFO(harmonic_notches[0].params, "HNTCH_",  20, ThrustSensor, HarmonicNotchFilterParams),
+
+    // @Group: HNTC2_
+    // @Path: ../Filter/HarmonicNotchFilter.cpp
+    //AP_SUBGROUPINFO(harmonic_notches[1].params, "HNTC2_", 20, ThrustSensor, HarmonicNotchFilterParams),
 
 
 

@@ -80,7 +80,7 @@ public:
     // converts desired thrust to linearized actuator output in a range of 0~1
     float               thrust_to_actuator(float thrust_in) const;
 
-    float               thrust_to_actuator_cl(float thrust_in, float thrust_measured) const;
+    float               thrust_to_actuator_cl(float thrust_in, float thrust_measured, uint8_t instance) const;
 
     // inverse of above
     float               actuator_to_thrust(float actuator) const;

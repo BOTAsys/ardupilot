@@ -17,6 +17,10 @@
 #include <AP_Common/AP_Common.h>
 #include <AP_HAL/AP_HAL.h>
 #include "AP_ThrustSensor.h"
+#include <Filter/LowPassFilter.h>
+#include <Filter/AverageFilter.h>
+#include <Filter/NotchFilter.h>
+#include <Filter/HarmonicNotchFilter.h>
 
 class AP_ThrustSensor_Backend
 {
@@ -36,7 +40,9 @@ public:
     static bool detect(uint8_t serial_instance);
 
     float force_n() const { return state.force_n; }
+    float force_filt_n() const { return state.force_filt_n;}
     float offset_n() const { return state.offset_n; }
+    float temp_c() const { return state.temp_c;}
     //virtual int16_t max_distance_cm() const { return params.max_distance_cm; }
     //virtual int16_t min_distance_cm() const { return params.min_distance_cm; }
     //int16_t ground_clearance_cm() const { return params.ground_clearance_cm; }
@@ -55,6 +61,14 @@ public:
     // 0 is no return value, 100 is perfect.  false means signal
     // quality is not available
     virtual bool get_signal_quality_pct(uint8_t &quality_pct) const { return false; }
+
+    LowPassFilterFloat lpf{400.0, 12.5};
+    AverageFilterFloat_Size5 avg{};
+    NotchFilter<float> notch;
+    //NotchFilterParams notchparams;
+    //void initnotch(NotchFilterFloat& filt);
+    
+
 
 protected:
 

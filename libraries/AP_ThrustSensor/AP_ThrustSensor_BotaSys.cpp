@@ -152,7 +152,7 @@ bool BotaForceTorqueSensorComm::checkSync()
 
 BotaForceTorqueSensorComm::ReadFrameRes BotaForceTorqueSensorComm::readFrame() // {VALID_DATA, NOT_VALID_DATA, NOT_ALLIGNED_DATA, NO_DATA}
 {
-  ReadFrameRes err = NO_FRAME;
+  ReadFrameRes res = NO_FRAME;
   if(serialAvailable()>=sizeof(frame))
   {
     serialReadBytes(frame.bytes, sizeof(frame));
@@ -160,16 +160,16 @@ BotaForceTorqueSensorComm::ReadFrameRes BotaForceTorqueSensorComm::readFrame() /
     {
       if (isCrcOk())
       {
-        err = VALID_FRAME;
+        res = VALID_FRAME;
       }
       else
       {
-        err = NOT_VALID_FRAME;
+        res = NOT_VALID_FRAME;
       }
     }
     else
     {
-      err = NOT_ALLIGNED_FRAME;
+      res = NOT_ALLIGNED_FRAME;
       //read one dummy bytes to regain sync
       if (serialAvailable())
       {
@@ -178,5 +178,5 @@ BotaForceTorqueSensorComm::ReadFrameRes BotaForceTorqueSensorComm::readFrame() /
       }
     }
   }
-  return err; //sucess 
+  return res; //sucess 
 }

@@ -28,6 +28,7 @@ extern const AP_HAL::HAL& hal;
 // read - return last value measured by sensor
 bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
 {
+    bool success = false;
     static BotaForceTorqueSensorComm::ReadFrameRes prev_res, res;
     if (uart != nullptr) {
         sensorComm.serial = uart;
@@ -36,16 +37,17 @@ bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
     switch(res)
     {
         case BotaForceTorqueSensorComm::VALID_FRAME:
+            if (res != prev_res)
+                gcs().send_text(MAV_SEVERITY_INFO, "%d, all good", instance);
+
             if (sensorComm.frame.data.status.val>0)
             {
-                // the measurements are invalid 
+                // the measurements received correctly but are flagged invalid 
                 if (res != prev_res)
                     gcs().send_text(MAV_SEVERITY_CRITICAL, "%d, status: %x", instance, sensorComm.frame.data.status.val);
             }
             else
             {
-                if (res != prev_res)
-                    gcs().send_text(MAV_SEVERITY_CRITICAL, "%d, all good", instance);
                 // Do something with the good measurements
                 state.force_n = sensorComm.frame.data.forces[2];
                 reading_m = state.force_n ;
@@ -62,8 +64,7 @@ bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
                 counter = 0;
                 gcs().send_text(MAV_SEVERITY_CRITICAL, "%d, get_reading %5.3f", instance, (double)(reading_m));
                 }*/   
-                prev_res = res;
-                return true;
+                success = true;
             }
         break;
         case BotaForceTorqueSensorComm::NOT_VALID_FRAME:
@@ -72,13 +73,15 @@ bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
         break;
         case BotaForceTorqueSensorComm::NOT_ALLIGNED_FRAME:
             if (res != prev_res)
-                gcs().send_text(MAV_SEVERITY_ERROR, "%d, lost sync, trying to reconnect", instance);
+                gcs().send_text(MAV_SEVERITY_ERROR, "%d, lost sync, trying to sync", instance);
         break;
         case BotaForceTorqueSensorComm::NO_FRAME:
+            if (res != prev_res)
+                gcs().send_text(MAV_SEVERITY_ERROR, "%d, No Data", instance);
         break;
     }
     prev_res = res;
-    return false;
+    return success;
 }
 
 

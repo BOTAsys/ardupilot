@@ -28,19 +28,24 @@ extern const AP_HAL::HAL& hal;
 // read - return last value measured by sensor
 bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
 {
+    static ReadFrameRes prev_res, res;
     if (uart != nullptr) {
         sensorComm.serial = uart;
     }
-    switch(sensorComm.readFrame())
+    res = sensorComm.readFrame()
+    switch(res)
     {
         case BotaForceTorqueSensorComm::VALID_FRAME:
             if (sensorComm.frame.data.status.val>0)
             {
                 // the measurements are invalid 
-                gcs().send_text(MAV_SEVERITY_CRITICAL, "%d, status: %x", instance, sensorComm.frame.data.status.val);
+                if (res != prev_res)
+                    gcs().send_text(MAV_SEVERITY_CRITICAL, "%d, status: %x", instance, sensorComm.frame.data.status.val);
             }
             else
             {
+                if (res != prev_res)
+                    gcs().send_text(MAV_SEVERITY_CRITICAL, "%d, all good", instance);
                 // Do something with the good measurements
                 state.force_n = sensorComm.frame.data.forces[2];
                 reading_m = state.force_n ;
@@ -61,14 +66,17 @@ bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
             }
         break;
         case BotaForceTorqueSensorComm::NOT_VALID_FRAME:
-            gcs().send_text(MAV_SEVERITY_ERROR, "%d, No valid frame. crc count: %u", instance, (unsigned int)(sensorComm.get_crc_count()));
+            if (res != prev_res)
+                gcs().send_text(MAV_SEVERITY_ERROR, "%d, No valid frame. crc count: %u", instance, (unsigned int)(sensorComm.get_crc_count()));
         break;
         case BotaForceTorqueSensorComm::NOT_ALLIGNED_FRAME:
-            gcs().send_text(MAV_SEVERITY_ERROR, "%d, lost sync, trying to reconnect", instance);
+            if (res != prev_res)
+                gcs().send_text(MAV_SEVERITY_ERROR, "%d, lost sync, trying to reconnect", instance);
         break;
         case BotaForceTorqueSensorComm::NO_FRAME:
         break;
     }
+    prev_res = res;
     return false;
 }
 

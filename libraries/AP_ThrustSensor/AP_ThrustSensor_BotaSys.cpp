@@ -28,11 +28,11 @@ extern const AP_HAL::HAL& hal;
 // read - return last value measured by sensor
 bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
 {
-    static ReadFrameRes prev_res, res;
+    static BotaForceTorqueSensorComm::ReadFrameRes prev_res, res;
     if (uart != nullptr) {
         sensorComm.serial = uart;
     }
-    res = sensorComm.readFrame()
+    res = sensorComm.readFrame();
     switch(res)
     {
         case BotaForceTorqueSensorComm::VALID_FRAME:

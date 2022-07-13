@@ -62,6 +62,7 @@ bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
                 counter = 0;
                 gcs().send_text(MAV_SEVERITY_CRITICAL, "%d, get_reading %5.3f", instance, (double)(reading_m));
                 }*/   
+                prev_res = res;
                 return true;
             }
         break;

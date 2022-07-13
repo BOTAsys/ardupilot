@@ -37,7 +37,7 @@ bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
             if (sensorComm.frame.data.status.val>0)
             {
                 // the measurements are invalid 
-                gcs().send_text(MAV_SEVERITY_CRITICAL, "Uart%d, status: %x", uart_instance, sensorComm.frame.data.status.val);
+                gcs().send_text(MAV_SEVERITY_CRITICAL, "%d, status: %x", instance, sensorComm.frame.data.status.val);
             }
             else
             {
@@ -46,25 +46,25 @@ bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
                 reading_m = state.force_n ;
                 state.temp_c = sensorComm.frame.data.temperature;
                 if (state.offset_flag) {
-                    //gcs().send_text(MAV_SEVERITY_CRITICAL, "Uart%d, offset: %5.3f", uart_instance, (double)(state.offset_n));
+                    //gcs().send_text(MAV_SEVERITY_CRITICAL, "%d, offset: %5.3f", instance, (double)(state.offset_n));
                     reading_m -= state.offset_n;
                 }
-                //gcs().send_text(MAV_SEVERITY_CRITICAL, "Uart%d, reading_m: %5.3f", uart_instance, reading_m);
-                //gcs().send_text(MAV_SEVERITY_CRITICAL, "Uart%d, temp_c: %5.3f", uart_instance, state.temp_c);
+                //gcs().send_text(MAV_SEVERITY_CRITICAL, "%d, reading_m: %5.3f", instance, reading_m);
+                //gcs().send_text(MAV_SEVERITY_CRITICAL, "%d, temp_c: %5.3f", instance, state.temp_c);
                 /*static uint8_t counter = 0;
                 counter++;
                 if (counter > 1) {
                 counter = 0;
-                gcs().send_text(MAV_SEVERITY_CRITICAL, "Uart%d, get_reading %5.3f", uart_instance, (double)(reading_m));
+                gcs().send_text(MAV_SEVERITY_CRITICAL, "%d, get_reading %5.3f", instance, (double)(reading_m));
                 }*/   
                 return true;
             }
         break;
         case BotaForceTorqueSensorComm::NOT_VALID_FRAME:
-            gcs().send_text(MAV_SEVERITY_ERROR, "Uart%d, No valid frame. crc count: %u", uart_instance, (unsigned int)(sensorComm.get_crc_count()));
+            gcs().send_text(MAV_SEVERITY_ERROR, "%d, No valid frame. crc count: %u", instance, (unsigned int)(sensorComm.get_crc_count()));
         break;
         case BotaForceTorqueSensorComm::NOT_ALLIGNED_FRAME:
-            gcs().send_text(MAV_SEVERITY_ERROR, "Uart%d, lost sync, trying to reconnect", uart_instance);
+            gcs().send_text(MAV_SEVERITY_ERROR, "%d, lost sync, trying to reconnect", instance);
         break;
         case BotaForceTorqueSensorComm::NO_FRAME:
         break;

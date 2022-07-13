@@ -95,6 +95,7 @@ protected:
     virtual uint16_t tx_bufsize() const { return 0; }
 
     AP_HAL::UARTDriver *uart = nullptr;
+    uint8_t uart_instance;
 
     // update state; not all backends call this!
     //virtual void update(void) override;

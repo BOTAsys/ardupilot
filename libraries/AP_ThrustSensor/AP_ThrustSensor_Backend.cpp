@@ -85,6 +85,7 @@ void AP_ThrustSensor_Backend::set_status(ThrustSensor::Status _status)
 
 void AP_ThrustSensor_Backend::init_serial(uint8_t serial_instance)
 {
+    uart_instance = serial_instance;
     uart = AP::serialmanager().find_serial(AP_SerialManager::SerialProtocol_ThrustSensor, serial_instance);
     if (uart != nullptr) {
         uart->begin(initial_baudrate(serial_instance), rx_bufsize(), tx_bufsize());

@@ -37,8 +37,8 @@ bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
     switch(res)
     {
         case BotaForceTorqueSensorComm::VALID_FRAME:
-            if (res != prev_res)
-                gcs().send_text(MAV_SEVERITY_INFO, "%d, all good", instance);
+            //if (res != prev_res)
+            //    gcs().send_text(MAV_SEVERITY_INFO, "%d, all good", instance);
 
             if (sensorComm.frame.data.status.val>0)
             {
@@ -68,19 +68,19 @@ bool AP_ThrustSensor_BotaSys::get_reading(float &reading_m)
             }
         break;
         case BotaForceTorqueSensorComm::NOT_VALID_FRAME:
-            if (res != prev_res)
-                gcs().send_text(MAV_SEVERITY_ERROR, "%d, No valid frame. crc count: %u", instance, (unsigned int)(sensorComm.get_crc_count()));
+            //if (res != prev_res)
+            //    gcs().send_text(MAV_SEVERITY_ERROR, "%d, No valid frame. crc count: %u", instance, (unsigned int)(sensorComm.get_crc_count()));
         break;
         case BotaForceTorqueSensorComm::NOT_ALLIGNED_FRAME:
-            if (res != prev_res)
-                gcs().send_text(MAV_SEVERITY_ERROR, "%d, lost sync, trying to sync", instance);
+            //if (res != prev_res)
+            //    gcs().send_text(MAV_SEVERITY_ERROR, "%d, lost sync, trying to sync", instance);
         break;
         case BotaForceTorqueSensorComm::NO_FRAME:
-            if (res != prev_res)
-                gcs().send_text(MAV_SEVERITY_ERROR, "%d, No Data", instance);
+            //if (res != prev_res)
+            //    gcs().send_text(MAV_SEVERITY_ERROR, "%d, No Data", instance);
         break;
     }
-    prev_res = res;
+    prev_res = prev_res; //debug deactivated
     return success;
 }
 

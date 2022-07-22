@@ -20,4 +20,5 @@ public:
     AP_Int8 skip;
     AP_Float maxthrust;
     AP_Int8 motor;
+    //AP_Float cutoff;
 };

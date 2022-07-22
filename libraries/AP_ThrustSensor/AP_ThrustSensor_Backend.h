@@ -18,6 +18,7 @@
 #include <AP_HAL/AP_HAL.h>
 #include "AP_ThrustSensor.h"
 #include <Filter/LowPassFilter.h>
+#include <Filter/LowPassFilter2p.h>
 #include <Filter/AverageFilter.h>
 #include <Filter/NotchFilter.h>
 #include <Filter/HarmonicNotchFilter.h>
@@ -61,10 +62,11 @@ public:
     // 0 is no return value, 100 is perfect.  false means signal
     // quality is not available
     virtual bool get_signal_quality_pct(uint8_t &quality_pct) const { return false; }
-
-    LowPassFilterFloat lpf{400.0, 12.5};
+    //float cutoff() const { return params.cutoff.get();}
+    LowPassFilterFloat lpf{400.0, 10.0};
+    LowPassFilter2pFloat lpf2{400.0, 10.0};
     AverageFilterFloat_Size5 avg{};
-    NotchFilter<float> notch;
+    NotchFilterFloat notch;
     //NotchFilterParams notchparams;
     //void initnotch(NotchFilterFloat& filt);
     

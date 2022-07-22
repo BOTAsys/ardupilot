@@ -207,6 +207,20 @@ const AP_Param::GroupInfo AP_MotorsMulticopter::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("SAFE_TIME", 42, AP_MotorsMulticopter, _safe_time, AP_MOTORS_SAFE_TIME_DEFAULT),
 
+    AP_GROUPINFO("P_GAIN", 43, AP_MotorsMulticopter, _p_gain, 1.0),
+
+    AP_GROUPINFO("D_GAIN", 44, AP_MotorsMulticopter, _d_gain, 0.1),
+
+    AP_GROUPINFO("AUTH", 45, AP_MotorsMulticopter, _auth, 0.3),
+
+    AP_GROUPINFO("FF_GAIN", 46, AP_MotorsMulticopter, _ff_gain, 1.0),
+    
+    AP_GROUPINFO("D_MAX", 47, AP_MotorsMulticopter, _d_max, 1.0),
+
+    AP_GROUPINFO("I_GAIN", 48, AP_MotorsMulticopter, _i_gain, 1.0),
+
+    AP_GROUPINFO("I_MAX", 49, AP_MotorsMulticopter, _i_max, 1.0),
+
     AP_GROUPEND
 };
 
@@ -456,15 +470,61 @@ float AP_MotorsMulticopter::thrust_to_actuator(float thrust_in) const
     return _spin_min + (_spin_max - _spin_min) * apply_thrust_curve_and_volt_scaling(thrust_in);
 }
 
-float AP_MotorsMulticopter::thrust_to_actuator_cl(float thrust_in, float thrust_measured, uint8_t instance) const
+float AP_MotorsMulticopter::thrust_to_actuator_cl(float thrust_cmd_raw, float thrust_meas, float thrust_filtered, bool reset, uint8_t _instance) const
 {
+    static float prev_measurement[4] = {0, 0, 0, 0};
+    static float prev_filt[4] = {0, 0, 0, 0};
+    static float integrator[4] = {0, 0, 0, 0};
+    //float thrust_cmd = apply_thrust_curve_and_volt_scaling(thrust_cmd_raw);
+    float thrust_cmd = thrust_cmd_raw;
+    //gcs().send_text(MAV_SEVERITY_INFO, "scaler: %5.3f", (double)thrust_cmd/thrust_cmd_raw);
+    thrust_cmd = constrain_float(thrust_cmd, 0.0f, 1.0f);
+    float err = (thrust_cmd - thrust_meas);
+    if(reset) {
+        integrator[_instance] = 0.0f;
+        prev_measurement[_instance] = thrust_meas;
+        prev_filt[_instance] = thrust_filtered;
+    }
+    integrator[_instance] += err*_i_gain/400;
+    integrator[_instance] = constrain_float(integrator[_instance], -_i_max, _i_max);
     
-    float ff = AP_MotorsMulticopter::thrust_to_actuator(thrust_in)*1.0f;
-    thrust_in = constrain_float(thrust_in, 0.0f, 1.0f);
-    float p = constrain_float((thrust_in - thrust_measured)*1.0f, -0.3f*thrust_in, 0.3f*thrust_in);
+    float error_dt_raw = (thrust_meas - prev_measurement[_instance])*400;
+    float err_dt_filt = (thrust_filtered - prev_filt[_instance])*400;
+    
+    float out_pid = _p_gain*err - _d_gain*err_dt_filt + integrator[_instance];
+    float out_pid_constr = constrain_float(out_pid, -_auth, _auth);
+    
+    float ol_out = AP_MotorsMulticopter::thrust_to_actuator(thrust_cmd_raw);
+    float ff = ol_out*_ff_gain;
+    
+    float output = constrain_float(ff + out_pid_constr, 0.0f, 1.0f);
+    //output = _spin_min + (_spin_max - _spin_min) * output;
+    output = _spin_min + (_spin_max - _spin_min) * apply_thrust_curve_and_volt_scaling(output);
+
+    prev_measurement[_instance] = thrust_meas;
+    prev_filt[_instance] = thrust_filtered;
+    //float output = constrain_float(ff + pid, 0.0f, 1.0f);
+    //float p = (thrust_in - thrust_measured)*1.0f;
     //gcs().send_text(MAV_SEVERITY_INFO, "ff: %5.3f", (double)ff);
     //gcs().send_text(MAV_SEVERITY_INFO, "p: %5.3f", (double)p);
-    return constrain_float(ff + p, 0.0f, 1.0f);
+    //if (_instance == 3){
+        const struct log_TC pkt {
+            LOG_PACKET_HEADER_INIT(LOG_TC_MSG),
+            time_us         : AP_HAL::micros64(),
+            instance        : _instance,
+            error           : err,
+            error_dt        : error_dt_raw,
+            error_dt_filt   : err_dt_filt,
+            thrust_in       : thrust_cmd,
+            integrated      : integrator[_instance],
+            pid_out         : out_pid_constr,
+            tot_out         : output,
+            thrust_measured : thrust_meas,
+            frwd            : ol_out,
+        };
+        AP::logger().WriteBlock(&pkt, sizeof(pkt));
+    //}
+    return output;
     /*thrust_in = constrain_float(thrust_in, 0.0f, 1.0f);
     return constrain_float(run_thrustcontroller(thrust_in, thrust_measured, instance), 0.0f, 1.0f)*/
 

@@ -122,6 +122,8 @@ public:
 
     float publish_thrust(uint8_t index);
 
+    float publish_thrust_filt(uint8_t index);
+
     bool publish_status(uint8_t index);
 
     bool publish_offset_flag(void);

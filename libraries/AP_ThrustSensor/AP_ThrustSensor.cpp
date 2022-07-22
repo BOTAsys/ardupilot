@@ -148,7 +148,9 @@ void ThrustSensor::init(void)
         state[i].thrust_valid_count = 0;
         state[i].offset_flag = false;
         //gcs().send_text(MAV_SEVERITY_CRITICAL, "Init called");
-        //drivers[i]->notch.init(400.0f, 30.0f, 10.0f, 40.0f);
+        //float a, q;
+        //drivers[i]->notch.calculate_A_and_Q(100.0f, 50.0f, 40.0f, a, q);
+        //drivers[i]->notch.init_with_A_and_Q(400.0, 100.0, 0.1, 1.71429);
         //drivers[i]->notch.reset();
     }
     
@@ -174,10 +176,12 @@ void ThrustSensor::update(void)
                 continue;
             }
             drivers[i]->update();
-            state[i].force_filt_n = drivers[i]->lpf.apply(state[i].force_n);
+            //state[i].force_filt_n = drivers[i]->lpf.apply(state[i].force_n);
+            state[i].force_filt_n = drivers[i]->lpf2.apply(state[i].force_n);
             //state[i].force_filt_n = drivers[i]->avg.apply(state[i].force_n);
             //state[i].force_filt_n = drivers[i]->notch.apply(state[i].force_n);
-            state[i].force_norm = state[i].force_filt_n/params[i].maxthrust;
+            //state[i].force_norm = state[i].force_filt_n/params[i].maxthrust;
+            state[i].force_norm = state[i].force_n/params[i].maxthrust;
             static uint8_t counter = 0;
             counter++;
             //if (counter > 50) {
@@ -252,6 +256,16 @@ float ThrustSensor::publish_thrust(uint8_t index) {
         return 0.0;
     }
     */
+   return 0.0;
+}
+float ThrustSensor::publish_thrust_filt(uint8_t index) {
+
+    for (uint8_t i=0; i < num_instances; i++) {
+
+        if (index == (uint8_t)params[i].motor){
+            return state[i].force_filt_n/params[i].maxthrust;
+        }
+    }
    return 0.0;
 }
 

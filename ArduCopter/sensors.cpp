@@ -33,6 +33,9 @@ void Copter::read_thrustsensor(void)
 float Copter::get_thrust_thrustsensor(uint8_t index){
     return thrustsensor.publish_thrust(index);
 }
+float Copter::get_thrust_filt_thrustsensor(uint8_t index){
+    return thrustsensor.publish_thrust_filt(index);
+}
 void Copter::offset_thrustsensor(void){
     thrustsensor.offset();
 }

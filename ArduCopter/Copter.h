@@ -222,6 +222,7 @@ public:
     friend class ModeTurtle;
     friend class ModeAltThrst;
     friend class ModeStabThrst;
+    friend class ModeAcroThrst;
 
     Copter(void);
 
@@ -886,6 +887,7 @@ private:
     void init_thrustsensor(void);
     void read_thrustsensor(void);
     float get_thrust_thrustsensor(uint8_t index);
+    float get_thrust_filt_thrustsensor(uint8_t index);
     void offset_thrustsensor(void);
     bool check_offset_thrustsensor(void);
     bool check_state_thrustsensor(uint8_t index);
@@ -1012,6 +1014,8 @@ private:
 
     ModeStabThrst mode_stabthrst;
 
+    ModeAcroThrst mode_acrothrst;
+
     // mode.cpp
     Mode *mode_from_mode_num(const Mode::Number mode);
     void exit_mode(Mode *&old_flightmode, Mode *&new_flightmode);
@@ -1020,6 +1024,7 @@ public:
     void failsafe_check();      // failsafe.cpp
     uint8_t publish_mode() {return get_mode();}
     float publish_thrust(uint8_t index) {return get_thrust_thrustsensor(index);}
+    float publish_thrust_filt(uint8_t index) {return get_thrust_filt_thrustsensor(index);}
     bool publish_state_thrustsensor(uint8_t index) {return check_state_thrustsensor(index);}
 };
 

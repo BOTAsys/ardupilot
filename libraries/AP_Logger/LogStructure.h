@@ -694,6 +694,21 @@ struct PACKED log_MotBatt {
     uint8_t mot_fail_flags;
 };
 
+struct PACKED log_TC {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    uint8_t instance;
+    float   error;
+    float   error_dt;
+    float   error_dt_filt;
+    float   thrust_in;
+    float   integrated;
+    float   pid_out;
+    float   tot_out;
+    float   thrust_measured;
+    float   frwd;
+};
+
 struct PACKED log_VER {
     LOG_PACKET_HEADER;
     uint64_t time_us;
@@ -1338,7 +1353,9 @@ LOG_STRUCTURE_FROM_AIS, \
     { LOG_VER_MSG, sizeof(log_VER), \
       "VER",   "QBHBBBBIZH", "TimeUS,BT,BST,Maj,Min,Pat,FWT,GH,FWS,APJ", "s---------", "F---------", false }, \
     { LOG_MOTBATT_MSG, sizeof(log_MotBatt), \
-      "MOTB", "QffffB",  "TimeUS,LiftMax,BatVolt,ThLimit,ThrAvMx,FailFlags", "s-----", "F-----" , true }
+      "MOTB", "QffffB",  "TimeUS,LiftMax,BatVolt,ThLimit,ThrAvMx,FailFlags", "s-----", "F-----" , true }, \
+    { LOG_TC_MSG, sizeof(log_TC), \
+      "THCN", "QBfffffffff",  "TimeUS,In,err,edt,edtf,cmd,intgr,pid,out,real,ol", "s#---------", "F----------" }
 
 // message types 0 to 63 reserved for vehicle specific use
 
@@ -1423,7 +1440,7 @@ enum LogMessages : uint8_t {
     LOG_VER_MSG,
     LOG_RCOUT2_MSG,
     LOG_RCOUT3_MSG,
-
+    LOG_TC_MSG,
     _LOG_LAST_MSG_
 };
 

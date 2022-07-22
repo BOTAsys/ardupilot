@@ -182,6 +182,10 @@ Mode *Copter::mode_from_mode_num(const Mode::Number mode)
             ret = &mode_stabthrst;
             break;
 
+        case Mode::Number::ACRO_THRST:
+            ret = &mode_acrothrst;
+            break;
+
         default:
             break;
     }

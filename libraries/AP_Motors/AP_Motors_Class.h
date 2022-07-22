@@ -263,7 +263,7 @@ public:
 
     // write log, to be called at 10hz
     virtual void Log_Write() {};
-
+    float p_cont;
 protected:
     // output functions that should be overloaded by child classes
     virtual void        output_armed_stabilizing() = 0;

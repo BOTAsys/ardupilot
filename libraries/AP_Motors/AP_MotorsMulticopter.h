@@ -80,6 +80,8 @@ public:
     // converts desired thrust to linearized actuator output in a range of 0~1
     float               thrust_to_actuator(float thrust_in) const;
 
+    float               thrust_to_actuator_cl(float thrust_in, float thrust_measured, float thrust_filtered, bool reset, uint8_t instance) const;
+
     // inverse of above
     float               actuator_to_thrust(float actuator) const;
 
@@ -178,6 +180,13 @@ protected:
     AP_Int8             _throttle_hover_learn;  // enable/disabled hover thrust learning
     AP_Int8             _disarm_disable_pwm;    // disable PWM output while disarmed
 
+    AP_Float            _p_gain;
+    AP_Float            _d_gain;
+    AP_Float            _ff_gain;
+    AP_Float            _auth;
+    AP_Float            _d_max;
+    AP_Float            _i_gain;
+    AP_Float            _i_max;
     // Maximum lean angle of yaw servo in degrees. This is specific to tricopter
     AP_Float            _yaw_servo_angle_max_deg;
 
@@ -199,7 +208,11 @@ protected:
     float               _throttle_limit;        // ratio of throttle limit between hover and maximum
     float               _throttle_thrust_max;   // the maximum allowed throttle thrust 0.0 to 1.0 in the range throttle_min to throttle_max
     float               _disarm_safe_timer;     // Timer for the esc when transitioning between zero pwm to minimum
-
+    //LowPassFilterFloat d_filter[4]{400.0, _d_filter_cutoff};
+    //const LowPassFilterFloat d_filter0{400.0, _d_filt_cutoff};
+    //LowPassFilterFloat d_filter1{400.0, _d_filt_cutoff};
+    //LowPassFilterFloat d_filter2{400.0, _d_filt_cutoff};
+    //LowPassFilterFloat d_filter3{400.0, _d_filt_cutoff};
     // vehicle supplied callback for thrust compensation. Used for tiltrotors and tiltwings
     thrust_compensation_fn_t _thrust_compensation_callback;
 

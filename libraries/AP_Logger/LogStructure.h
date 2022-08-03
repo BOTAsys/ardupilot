@@ -459,6 +459,17 @@ struct PACKED log_RFND {
 };
 
 /*
+  thrustsensor
+  */
+struct PACKED log_THRS {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    uint8_t instance;
+    float thrust;
+    float thrust_filt;
+    float temp;
+};
+/*
   terrain log structure
  */
 struct PACKED log_TERRAIN {
@@ -681,6 +692,21 @@ struct PACKED log_MotBatt {
     float   th_limit;
     float th_average_max;
     uint8_t mot_fail_flags;
+};
+
+struct PACKED log_TC {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    uint8_t instance;
+    float   error;
+    float   error_dt;
+    float   error_dt_filt;
+    float   thrust_in;
+    float   integrated;
+    float   pid_out;
+    float   tot_out;
+    float   thrust_measured;
+    float   frwd;
 };
 
 struct PACKED log_VER {
@@ -1248,6 +1274,8 @@ LOG_STRUCTURE_FROM_CAMERA \
       "MODE", "QMBB",         "TimeUS,Mode,ModeNum,Rsn", "s---", "F---" }, \
     { LOG_RFND_MSG, sizeof(log_RFND), \
       "RFND", "QBCBB", "TimeUS,Instance,Dist,Stat,Orient", "s#m--", "F-B--", true }, \
+    { LOG_THRS_MSG, sizeof(log_THRS), \
+    "THRS", "QBfff", "TimeUS,Instance,Thrust,Thrust_Filt,Temp", "s#--O", "F----", true }, \
     { LOG_MAV_STATS, sizeof(log_MAV_Stats), \
       "DMS", "QIIIIBBBBBBBBB",         "TimeUS,N,Dp,RT,RS,Fa,Fmn,Fmx,Pa,Pmn,Pmx,Sa,Smn,Smx", "s-------------", "F-------------" }, \
     LOG_STRUCTURE_FROM_BEACON                                       \
@@ -1325,7 +1353,9 @@ LOG_STRUCTURE_FROM_AIS, \
     { LOG_VER_MSG, sizeof(log_VER), \
       "VER",   "QBHBBBBIZH", "TimeUS,BT,BST,Maj,Min,Pat,FWT,GH,FWS,APJ", "s---------", "F---------", false }, \
     { LOG_MOTBATT_MSG, sizeof(log_MotBatt), \
-      "MOTB", "QffffB",  "TimeUS,LiftMax,BatVolt,ThLimit,ThrAvMx,FailFlags", "s-----", "F-----" , true }
+      "MOTB", "QffffB",  "TimeUS,LiftMax,BatVolt,ThLimit,ThrAvMx,FailFlags", "s-----", "F-----" , true }, \
+    { LOG_TC_MSG, sizeof(log_TC), \
+      "THCN", "QBfffffffff",  "TimeUS,In,err,edt,edtf,cmd,intgr,pid,out,real,ol", "s#---------", "F----------" }
 
 // message types 0 to 63 reserved for vehicle specific use
 
@@ -1373,7 +1403,7 @@ enum LogMessages : uint8_t {
     LOG_UNIT_MSG,
     LOG_MULT_MSG,
     LOG_RALLY_MSG,
-
+    LOG_THRS_MSG,
     // LOG_MODE_MSG is used as a check for duplicates. Do not add between this and LOG_FORMAT_MSG
     LOG_MODE_MSG,
 
@@ -1410,7 +1440,7 @@ enum LogMessages : uint8_t {
     LOG_VER_MSG,
     LOG_RCOUT2_MSG,
     LOG_RCOUT3_MSG,
-
+    LOG_TC_MSG,
     _LOG_LAST_MSG_
 };
 

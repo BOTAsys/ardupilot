@@ -552,6 +552,10 @@ bool AP_Arming_Copter::arm_checks(AP_Arming::Method method)
 {
     const auto &ahrs = AP::ahrs();
 
+    if (!copter.check_offset_thrustsensor()){
+        gcs().send_text(MAV_SEVERITY_CRITICAL, "arm_checks");
+        copter.offset_thrustsensor();
+    }
     // always check if inertial nav has started and is ready
     if (!ahrs.healthy()) {
         check_failed(true, "AHRS not healthy");
@@ -670,6 +674,12 @@ void AP_Arming_Copter::set_pre_arm_check(bool b)
 bool AP_Arming_Copter::arm(const AP_Arming::Method method, const bool do_arming_checks)
 {
     static bool in_arm_motors = false;
+
+    //gcs().send_text(MAV_SEVERITY_CRITICAL, "arm");
+    if (!copter.check_offset_thrustsensor()){
+        copter.offset_thrustsensor();
+    }
+    
 
     // exit immediately if already in this function
     if (in_arm_motors) {

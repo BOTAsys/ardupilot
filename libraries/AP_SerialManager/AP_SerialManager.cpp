@@ -570,6 +570,14 @@ void AP_SerialManager::init()
                     // Note init is handled by AP_MSP
                     break;
 #endif
+                case SerialProtocol_ThrustSensor:
+                    state[i].baud.set_default(AP_SERIALMANAGER_THRUSTSENSOR_BAUD/1000);
+                    uart->begin(map_baudrate(state[i].baud),
+                                         AP_SERIALMANAGER_THRUSTSENSOR_BUFSIZE_RX,
+                                         AP_SERIALMANAGER_THRUSTSENSOR_BUFSIZE_TX);
+                    uart->set_stop_bits(1);
+                    uart->set_flow_control(AP_HAL::UARTDriver::FLOW_CONTROL_DISABLE);
+                    break;
                 default:
                     uart->begin(map_baudrate(state[i].baud));
             }

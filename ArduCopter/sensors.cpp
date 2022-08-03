@@ -23,7 +23,28 @@ void Copter::init_rangefinder(void)
    rangefinder_up_state.enabled = rangefinder.has_orientation(ROTATION_PITCH_90);
 #endif
 }
-
+void Copter::init_thrustsensor(void){
+    thrustsensor.init();
+}
+void Copter::read_thrustsensor(void)
+{
+    thrustsensor.update();
+}
+float Copter::get_thrust_thrustsensor(uint8_t index){
+    return thrustsensor.publish_thrust(index);
+}
+float Copter::get_thrust_filt_thrustsensor(uint8_t index){
+    return thrustsensor.publish_thrust_filt(index);
+}
+void Copter::offset_thrustsensor(void){
+    thrustsensor.offset();
+}
+bool Copter::check_offset_thrustsensor(void){
+    return thrustsensor.publish_offset_flag();
+}
+bool Copter::check_state_thrustsensor(uint8_t index){
+    return thrustsensor.publish_status(index);
+}
 // return rangefinder altitude in centimeters
 void Copter::read_rangefinder(void)
 {

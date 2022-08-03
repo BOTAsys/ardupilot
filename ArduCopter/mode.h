@@ -39,6 +39,9 @@ public:
         AUTOROTATE =   26,  // Autonomous autorotation
         AUTO_RTL =     27,  // Auto RTL, this is not a true mode, AUTO will report as this mode if entered to perform a DO_LAND_START Landing sequence
         TURTLE =       28,  // Flip over after crash
+        ALT_THRST =    29,   // Use ThrustSensor in Alt_Hold
+        STAB_THRST =   30,
+        ACRO_THRST =   31
     };
 
     // constructor
@@ -330,6 +333,54 @@ protected:
 
     const char *name() const override { return "ACRO"; }
     const char *name4() const override { return "ACRO"; }
+
+    // get_pilot_desired_angle_rates - transform pilot's normalised roll pitch and yaw input into a desired lean angle rates
+    // inputs are -1 to 1 and the function returns desired angle rates in centi-degrees-per-second
+    void get_pilot_desired_angle_rates(float roll_in, float pitch_in, float yaw_in, float &roll_out, float &pitch_out, float &yaw_out);
+
+    float throttle_hover() const override;
+
+private:
+    bool disable_air_mode_reset;
+};
+#endif
+
+#if MODE_ACRO_ENABLED == ENABLED
+class ModeAcroThrst : public Mode {
+
+public:
+    // inherit constructor
+    using Mode::Mode;
+    Number mode_number() const override { return Number::ACRO_THRST; }
+
+    enum class Trainer {
+        OFF = 0,
+        LEVELING = 1,
+        LIMITED = 2,
+    };
+
+    enum class AcroOptions {
+        AIR_MODE = 1 << 0,
+        RATE_LOOP_ONLY = 1 << 1,
+    };
+
+    virtual void run() override;
+
+    bool requires_GPS() const override { return false; }
+    bool has_manual_throttle() const override { return true; }
+    bool allows_arming(AP_Arming::Method method) const override { return true; };
+    bool is_autopilot() const override { return false; }
+    bool init(bool ignore_checks) override;
+    void exit() override;
+    // whether an air-mode aux switch has been toggled
+    void air_mode_aux_changed();
+    bool allows_save_trim() const override { return true; }
+    bool allows_flip() const override { return true; }
+
+protected:
+
+    const char *name() const override { return "ACROTHRST"; }
+    const char *name4() const override { return "ACTH"; }
 
     // get_pilot_desired_angle_rates - transform pilot's normalised roll pitch and yaw input into a desired lean angle rates
     // inputs are -1 to 1 and the function returns desired angle rates in centi-degrees-per-second
@@ -1476,6 +1527,32 @@ private:
 };
 #endif
 
+class ModeStabThrst : public Mode {
+
+public:
+    // inherit constructor
+    using Mode::Mode;
+    Number mode_number() const override { return Number::STAB_THRST; }
+
+    virtual void run() override;
+
+    bool requires_GPS() const override { return false; }
+    bool has_manual_throttle() const override { return true; }
+    bool allows_arming(AP_Arming::Method method) const override { return true; };
+    bool is_autopilot() const override { return false; }
+    bool allows_save_trim() const override { return true; }
+    bool allows_autotune() const override { return true; }
+    bool allows_flip() const override { return true; }
+
+protected:
+
+    const char *name() const override { return "STAB_THRST"; }
+    const char *name4() const override { return "STTH"; }
+
+private:
+
+};
+
 class ModeSystemId : public Mode {
 
 public:
@@ -1630,6 +1707,48 @@ private:
     Vector2f motors_input;
 };
 #endif
+
+class ModeAltThrst : public Mode {
+/*private:
+    float kp = 1.0f;
+    float ki = 1.0f;
+    float kd = 1.0f;
+    float kff = 0.6f;
+    float imax = 1.0f;
+    float filtt = 0.0f;
+    float filte = 0.0f;
+    float filtd = 20.0f;
+    float dt = 0.01f;
+*/
+public:
+    // inherit constructor
+    using Mode::Mode;
+    Number mode_number() const override { return Number::ALT_THRST; }
+
+    bool init(bool ignore_checks) override;
+    void run() override;
+
+    bool requires_GPS() const override { return false; }
+    bool has_manual_throttle() const override { return false; }
+    bool allows_arming(AP_Arming::Method method) const override { return true; };
+    bool is_autopilot() const override { return false; }
+    bool has_user_takeoff(bool must_navigate) const override {
+        return !must_navigate;
+    }
+    bool allows_autotune() const override { return true; }
+    bool allows_flip() const override { return true; }
+    /*float run_thrustcontrol_pid (float thrust_in, float thrust_actual, AC_PID pid, uint8_t instance);
+    AC_PID mot1pid;
+    AC_PID mot2pid;
+    AC_PID mot3pid;
+    AC_PID mot4pid;
+    */
+protected:
+
+    const char *name() const override { return "ALT_THRST"; }
+    const char *name4() const override { return "ALTT"; }
+
+};
 
 // modes below rely on Guided mode so must be declared at the end (instead of in alphabetical order)
 

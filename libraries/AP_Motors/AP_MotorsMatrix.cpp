@@ -16,6 +16,9 @@
 #include <AP_HAL/AP_HAL.h>
 #include "AP_MotorsMatrix.h"
 #include <AP_Vehicle/AP_Vehicle.h>
+#include <../ArduCopter/Copter.h>
+#include <AP_ThrustSensor/AP_ThrustSensor.h>
+#include <GCS_MAVLink/GCS.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -158,6 +161,7 @@ void AP_MotorsMatrix::output_to_motors()
             // sends output to motors when armed but not flying
             for (i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
                 if (motor_enabled[i]) {
+                    //gcs().send_text(MAV_SEVERITY_CRITICAL, "publish_thrust[%i]: %f", i, copter.publish_thrust(i));
                     set_actuator_with_slew(_actuator[i], actuator_spin_up_to_ground_idle());
                 }
             }
@@ -166,9 +170,17 @@ void AP_MotorsMatrix::output_to_motors()
         case SpoolState::THROTTLE_UNLIMITED:
         case SpoolState::SPOOLING_DOWN:
             // set motor output based on thrust requests
+            static bool int_reset[4];
             for (i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
                 if (motor_enabled[i]) {
-                    set_actuator_with_slew(_actuator[i], thrust_to_actuator(_thrust_rpyt_out[i]));
+                    if ((copter.publish_mode() == 29U || copter.publish_mode() == 30U || copter.publish_mode() == 31U ) && copter.publish_state_thrustsensor(i)){
+                        set_actuator_with_slew(_actuator[i], thrust_to_actuator_cl(_thrust_rpyt_out[i], copter.publish_thrust(i), copter.publish_thrust_filt(i), int_reset[i],i));
+                        int_reset[i] = 0;
+                    }
+                    else {
+                        int_reset[i] = 1;
+                        set_actuator_with_slew(_actuator[i], thrust_to_actuator(_thrust_rpyt_out[i]));
+                    } 
                 }
             }
             break;

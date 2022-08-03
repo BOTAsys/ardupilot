@@ -129,6 +129,10 @@
  # include <AP_RangeFinder/AP_RangeFinder.h>
 #endif
 
+#if THRUSTSENSOR_ENABLED == ENABLED
+ #include <AP_ThrustSensor/AP_ThrustSensor.h>
+#endif
+
 #include <AP_Mount/AP_Mount.h>
 
 #if CAMERA == ENABLED
@@ -216,6 +220,9 @@ public:
     friend class ModeZigZag;
     friend class ModeAutorotate;
     friend class ModeTurtle;
+    friend class ModeAltThrst;
+    friend class ModeStabThrst;
+    friend class ModeAcroThrst;
 
     Copter(void);
 
@@ -877,6 +884,13 @@ private:
     bool rangefinder_up_ok() const;
     void update_optical_flow(void);
     void compass_cal_update(void);
+    void init_thrustsensor(void);
+    void read_thrustsensor(void);
+    float get_thrust_thrustsensor(uint8_t index);
+    float get_thrust_filt_thrustsensor(uint8_t index);
+    void offset_thrustsensor(void);
+    bool check_offset_thrustsensor(void);
+    bool check_state_thrustsensor(uint8_t index);
 
     // RC_Channel.cpp
     void save_trim();
@@ -996,6 +1010,11 @@ private:
 #if MODE_TURTLE_ENABLED == ENABLED
     ModeTurtle mode_turtle;
 #endif
+    ModeAltThrst mode_altthrst;
+
+    ModeStabThrst mode_stabthrst;
+
+    ModeAcroThrst mode_acrothrst;
 
     // mode.cpp
     Mode *mode_from_mode_num(const Mode::Number mode);
@@ -1003,6 +1022,10 @@ private:
 
 public:
     void failsafe_check();      // failsafe.cpp
+    uint8_t publish_mode() {return get_mode();}
+    float publish_thrust(uint8_t index) {return get_thrust_thrustsensor(index);}
+    float publish_thrust_filt(uint8_t index) {return get_thrust_filt_thrustsensor(index);}
+    bool publish_state_thrustsensor(uint8_t index) {return check_state_thrustsensor(index);}
 };
 
 extern Copter copter;

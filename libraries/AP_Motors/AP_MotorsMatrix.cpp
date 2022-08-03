@@ -173,15 +173,7 @@ void AP_MotorsMatrix::output_to_motors()
             static bool int_reset[4];
             for (i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
                 if (motor_enabled[i]) {
-                    //gcs().send_text(MAV_SEVERITY_INFO, "publish_state[%d]: %d", i,  (uint8_t)copter.publish_state_thrustsensor(i));
                     if ((copter.publish_mode() == 29U || copter.publish_mode() == 30U || copter.publish_mode() == 31U ) && copter.publish_state_thrustsensor(i)){
-                        //gcs().send_text(MAV_SEVERITY_INFO, "CL");
-                        //static uint8_t counter = 0;
-                        //counter++;
-                        //if (counter > 50) {
-                        //    counter = 0;
-                        //    gcs().send_text(MAV_SEVERITY_INFO, "Thrust[%d]: %5.3f", i, (double)copter.publish_thrust(i));
-                        //}
                         set_actuator_with_slew(_actuator[i], thrust_to_actuator_cl(_thrust_rpyt_out[i], copter.publish_thrust(i), copter.publish_thrust_filt(i), int_reset[i],i));
                         int_reset[i] = 0;
                     }

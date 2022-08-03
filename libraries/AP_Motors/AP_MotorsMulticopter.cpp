@@ -477,7 +477,6 @@ float AP_MotorsMulticopter::thrust_to_actuator_cl(float thrust_cmd_raw, float th
     static float integrator[4] = {0, 0, 0, 0};
     //float thrust_cmd = apply_thrust_curve_and_volt_scaling(thrust_cmd_raw);
     float thrust_cmd = thrust_cmd_raw;
-    //gcs().send_text(MAV_SEVERITY_INFO, "scaler: %5.3f", (double)thrust_cmd/thrust_cmd_raw);
     thrust_cmd = constrain_float(thrust_cmd, 0.0f, 1.0f);
     float err = (thrust_cmd - thrust_meas);
     if(reset) {
@@ -498,36 +497,26 @@ float AP_MotorsMulticopter::thrust_to_actuator_cl(float thrust_cmd_raw, float th
     float ff = ol_out*_ff_gain;
     
     float output = constrain_float(ff + out_pid_constr, 0.0f, 1.0f);
-    //output = _spin_min + (_spin_max - _spin_min) * output;
     output = _spin_min + (_spin_max - _spin_min) * apply_thrust_curve_and_volt_scaling(output);
 
     prev_measurement[_instance] = thrust_meas;
     prev_filt[_instance] = thrust_filtered;
-    //float output = constrain_float(ff + pid, 0.0f, 1.0f);
-    //float p = (thrust_in - thrust_measured)*1.0f;
-    //gcs().send_text(MAV_SEVERITY_INFO, "ff: %5.3f", (double)ff);
-    //gcs().send_text(MAV_SEVERITY_INFO, "p: %5.3f", (double)p);
-    //if (_instance == 3){
-        const struct log_TC pkt {
-            LOG_PACKET_HEADER_INIT(LOG_TC_MSG),
-            time_us         : AP_HAL::micros64(),
-            instance        : _instance,
-            error           : err,
-            error_dt        : error_dt_raw,
-            error_dt_filt   : err_dt_filt,
-            thrust_in       : thrust_cmd,
-            integrated      : integrator[_instance],
-            pid_out         : out_pid_constr,
-            tot_out         : output,
-            thrust_measured : thrust_meas,
-            frwd            : ol_out,
-        };
-        AP::logger().WriteBlock(&pkt, sizeof(pkt));
-    //}
+     const struct log_TC pkt {
+         LOG_PACKET_HEADER_INIT(LOG_TC_MSG),
+         time_us         : AP_HAL::micros64(),
+         instance        : _instance,
+         error           : err,
+         error_dt        : error_dt_raw,
+         error_dt_filt   : err_dt_filt,
+         thrust_in       : thrust_cmd,
+         integrated      : integrator[_instance],
+         pid_out         : out_pid_constr,
+         tot_out         : output,
+         thrust_measured : thrust_meas,
+         frwd            : ol_out,
+     };
+     AP::logger().WriteBlock(&pkt, sizeof(pkt));
     return output;
-    /*thrust_in = constrain_float(thrust_in, 0.0f, 1.0f);
-    return constrain_float(run_thrustcontroller(thrust_in, thrust_measured, instance), 0.0f, 1.0f)*/
-
 }
 
 // inverse of above, tested with AP_Motors/examples/expo_inverse_test

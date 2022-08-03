@@ -57,15 +57,7 @@ void AP_ThrustSensor_Backend::update_status()
     else {
         set_status(ThrustSensor::Status::Good);
     }
-    /*// check distance
-    if (state.distance_m > max_distance_cm() * 0.01f) {
-        set_status(ThrustSensor::Status::OutOfRangeHigh);
-    } else if (state.distance_m < min_distance_cm() * 0.01f) {
-        set_status(ThrustSensor::Status::OutOfRangeLow);
-    } else {
-        set_status(ThrustSensor::Status::Good);
-    }
-    */
+    //out of range code should be implemented here
 }
 
 // set status and update valid count
@@ -119,10 +111,4 @@ void AP_ThrustSensor_Backend::update(void)
     } else if (AP_HAL::millis() - state.last_reading_ms > read_timeout_ms()) {
         set_status(ThrustSensor::Status::NoData);
     }
-    /*static uint8_t counter = 0;
-    counter++;
-    if (counter > 1) {
-        counter = 0;
-        gcs().send_text(MAV_SEVERITY_CRITICAL, "Backend Update");
-    }*/
 }

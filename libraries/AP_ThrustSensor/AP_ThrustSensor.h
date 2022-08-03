@@ -139,39 +139,6 @@ public:
 
     static ThrustSensor *get_singleton(void) { return _singleton; }
 
-    // structure per harmonic notch filter. This is public to allow for
-    // easy iteration
-    /*class HarmonicNotch {
-    public:
-        HarmonicNotchFilterParams params;
-        HarmonicNotchFilterFloat filter[12];
-
-        uint8_t num_dynamic_notches;
-
-        // the current center frequency for the notch
-        float calculated_notch_freq_hz[12];
-        uint8_t num_calculated_notch_frequencies;
-
-        // Update the harmonic notch frequency
-        void update_notch_freq_hz(float scaled_freq);
-
-        // Update the harmonic notch frequencies
-        void update_notch_frequencies_hz(uint8_t num_freqs, const float scaled_freq[]);
-
-        // runtime update of notch parameters
-        void update_params(uint8_t instance, bool converging, float gyro_rate);
-
-        // Update the harmonic notch frequencies
-        void update_freq_hz(float scaled_freq);
-        void update_frequencies_hz(uint8_t num_freqs, const float scaled_freq[]);
-        
-    private:
-        // support for updating harmonic filter at runtime
-        float last_center_freq_hz[12];
-        float last_bandwidth_hz[12];
-        float last_attenuation_dB[12];
-    } harmonic_notches[2];*/
-
 protected:
     AP_ThrustSensor_Params params[THRUSTSENSOR_MAX_INSTANCES];
 

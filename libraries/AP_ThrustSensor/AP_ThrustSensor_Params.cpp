@@ -54,17 +54,6 @@ const AP_Param::GroupInfo AP_ThrustSensor_Params::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("MOTOR", 7, AP_ThrustSensor_Params, motor, -1),
 
-    //AP_GROUPINFO("CUTOFF", 8, AP_ThrustSensor_Params, cutoff, 12.5),
-
-    // @Group: HNTCH_
-    // @Path: ../Filter/HarmonicNotchFilter.cpp
-    //AP_SUBGROUPINFO(harmonic_notches[0].params, "HNTCH_",  20, ThrustSensor, HarmonicNotchFilterParams),
-
-    // @Group: HNTC2_
-    // @Path: ../Filter/HarmonicNotchFilter.cpp
-    //AP_SUBGROUPINFO(harmonic_notches[1].params, "HNTC2_", 20, ThrustSensor, HarmonicNotchFilterParams),
-
-
 
     AP_GROUPEND
 };

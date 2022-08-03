@@ -44,9 +44,6 @@ public:
     float force_filt_n() const { return state.force_filt_n;}
     float offset_n() const { return state.offset_n; }
     float temp_c() const { return state.temp_c;}
-    //virtual int16_t max_distance_cm() const { return params.max_distance_cm; }
-    //virtual int16_t min_distance_cm() const { return params.min_distance_cm; }
-    //int16_t ground_clearance_cm() const { return params.ground_clearance_cm; }
     ThrustSensor::Status status() const;
     ThrustSensor::Type type() const { return (ThrustSensor::Type)params.type.get(); }
 
@@ -62,15 +59,10 @@ public:
     // 0 is no return value, 100 is perfect.  false means signal
     // quality is not available
     virtual bool get_signal_quality_pct(uint8_t &quality_pct) const { return false; }
-    //float cutoff() const { return params.cutoff.get();}
     LowPassFilterFloat lpf{400.0, 10.0};
     LowPassFilter2pFloat lpf2{400.0, 10.0};
     AverageFilterFloat_Size5 avg{};
-    NotchFilterFloat notch;
-    //NotchFilterParams notchparams;
-    //void initnotch(NotchFilterFloat& filt);
-    
-
+    NotchFilterFloat notch;    
 
 protected:
 

@@ -182,17 +182,11 @@ void ThrustSensor::update(void)
             //state[i].force_filt_n = drivers[i]->notch.apply(state[i].force_n);
             //state[i].force_norm = state[i].force_filt_n/params[i].maxthrust;
             state[i].force_norm = state[i].force_n/params[i].maxthrust;
-            static uint8_t counter = 0;
-            counter++;
-            //if (counter > 50) {
-                counter = 0;
-                //gcs().send_text(MAV_SEVERITY_INFO, "Thrust[%d]: %5.3f", i, (double)state[i].force_n);
-                //gcs().send_text(MAV_SEVERITY_CRITICAL, "Offset[%d]: %5.3f", i, (double)state[i].offset_n);
-            // }
+            //gcs().send_text(MAV_SEVERITY_INFO, "Thrust[%d]: %5.3f", i, (double)state[i].force_n);
+            //gcs().send_text(MAV_SEVERITY_CRITICAL, "Offset[%d]: %5.3f", i, (double)state[i].offset_n);
         }
     }
-    
-    //AP::logger().Write("TSBS", "TimeUS", "Thrust", "Qf", AP_HAL::micros64(), (double)(state->force_n));
+
 #if HAL_LOGGING_ENABLED
     Log_THRS();
 #endif
@@ -218,9 +212,6 @@ void ThrustSensor::offset(void)
 }
 
 float ThrustSensor::publish_thrust(uint8_t index) {
-    //if (index > num_instances){
-    //    return 0.0;
-    //}
     for (uint8_t i=0; i < num_instances; i++) {
         //gcs().send_text(MAV_SEVERITY_CRITICAL, "params[%d]: %d", i, (uint8_t)params[i].motor);
         //gcs().send_text(MAV_SEVERITY_CRITICAL, "index: %d", index);
@@ -229,35 +220,9 @@ float ThrustSensor::publish_thrust(uint8_t index) {
             return state[i].force_norm;
         }
     }
-    /*
-    switch (index)
-    {
-    case 0:
-        //if (0 > num_instances){
-        //return 0.0;
-        //}
-        return state[0].force_norm;
-    case 1:
-        if (1 > num_instances){
-        return 0.0;
-        }
-        return state[1].force_norm;
-    case 2:
-        if (2 > num_instances){
-        return 0.0;
-        }
-        return state[2].force_norm;
-    case 3:
-        if (3 > num_instances){
-        return 0.0;
-        }
-        return state[3].force_norm;
-    default:
-        return 0.0;
-    }
-    */
    return 0.0;
 }
+
 float ThrustSensor::publish_thrust_filt(uint8_t index) {
 
     for (uint8_t i=0; i < num_instances; i++) {
